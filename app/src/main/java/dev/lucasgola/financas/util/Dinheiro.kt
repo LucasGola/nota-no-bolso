@@ -40,3 +40,10 @@ fun formatarDecimalBr(valor: BigDecimal): String {
     nf.maximumFractionDigits = maxOf(valor.stripTrailingZeros().scale(), 0)
     return nf.format(valor)
 }
+
+/** 58891504001796 → 58.891.504/0017-96. Retorna o texto original se não tiver 14 dígitos. */
+fun formatarCnpj(cnpj: String): String {
+    val d = cnpj.filter { it.isDigit() }
+    if (d.length != 14) return cnpj
+    return "${d.substring(0, 2)}.${d.substring(2, 5)}.${d.substring(5, 8)}/${d.substring(8, 12)}-${d.substring(12)}"
+}

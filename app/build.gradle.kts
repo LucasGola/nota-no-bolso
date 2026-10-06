@@ -77,6 +77,7 @@ dependencies {
 
     implementation(libs.jsoup)
     implementation(libs.okhttp)
+    implementation(libs.code.scanner)
 
     testImplementation(libs.junit)
 }

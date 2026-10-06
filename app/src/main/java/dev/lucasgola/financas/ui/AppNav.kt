@@ -1,5 +1,7 @@
 package dev.lucasgola.financas.ui
 
+import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -13,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,6 +27,9 @@ import dev.lucasgola.financas.R
 import dev.lucasgola.financas.ui.categorias.CategoriasScreen
 import dev.lucasgola.financas.ui.extrato.ExtratoScreen
 import dev.lucasgola.financas.ui.graficos.GraficosScreen
+import dev.lucasgola.financas.ui.importar.ImportarNotaScreen
+import dev.lucasgola.financas.ui.importar.PendentesScreen
+import dev.lucasgola.financas.ui.importar.lerQrCode
 import dev.lucasgola.financas.ui.lancamento.LancamentoFormScreen
 
 private enum class Aba(val rota: String, val titulo: String, @DrawableRes val icone: Int) {
@@ -35,9 +41,15 @@ private enum class Aba(val rota: String, val titulo: String, @DrawableRes val ic
 private const val ROTA_LANCAMENTO = "lancamento?id={id}"
 private fun rotaLancamento(id: Long?) = "lancamento?id=${id ?: -1}"
 
+private const val ROTA_IMPORTAR = "importar?qr={qr}"
+private fun rotaImportar(conteudoQr: String) = "importar?qr=${Uri.encode(conteudoQr)}"
+
+private const val ROTA_PENDENTES = "pendentes"
+
 @Composable
 fun AppNav() {
-    val app = LocalContext.current.applicationContext as FinancasApp
+    val context = LocalContext.current
+    val app = context.applicationContext as FinancasApp
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val rotaAtual = entrada?.destination?.route
@@ -70,6 +82,15 @@ fun AppNav() {
                     db = app.db,
                     onNovo = { nav.navigate(rotaLancamento(null)) },
                     onAbrir = { nav.navigate(rotaLancamento(it)) },
+                    onLerQr = {
+                        lerQrCode(
+                            context,
+                            onLido = { nav.navigate(rotaImportar(it)) },
+                            onErro = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() },
+                        )
+                    },
+                    onImportarUrl = { nav.navigate(rotaImportar(it)) },
+                    onVerPendentes = { nav.navigate(ROTA_PENDENTES) },
                 )
             }
             composable(Aba.GRAFICOS.rota) { GraficosScreen() }
@@ -81,6 +102,33 @@ fun AppNav() {
                 val id = back.arguments?.getLong("id")?.takeIf { it > 0 }
                 LancamentoFormScreen(db = app.db, lancamentoId = id, onFechar = { nav.popBackStack() })
             }
+            composable(
+                ROTA_IMPORTAR,
+                arguments = listOf(navArgument("qr") { type = NavType.StringType }),
+            ) { back ->
+                ImportarNotaScreen(
+                    repo = app.importacao,
+                    categoriaDao = app.db.categoriaDao(),
+                    conteudoQr = back.arguments?.getString("qr").orEmpty(),
+                    onFechar = { nav.popBackStack() },
+                    onAbrirLancamento = { id -> nav.substituirPor(rotaLancamento(id)) },
+                    onVerPendentes = { nav.substituirPor(ROTA_PENDENTES) },
+                )
+            }
+            composable(ROTA_PENDENTES) {
+                PendentesScreen(
+                    db = app.db,
+                    repo = app.importacao,
+                    onTentarNovamente = { url -> nav.navigate(rotaImportar(url)) },
+                    onFechar = { nav.popBackStack() },
+                )
+            }
         }
     }
+}
+
+/** Troca a tela atual por outra (o "voltar" não retorna para a tela substituída). */
+private fun NavHostController.substituirPor(rota: String) {
+    val atual = currentDestination?.id ?: return navigate(rota)
+    navigate(rota) { popUpTo(atual) { inclusive = true } }
 }

@@ -6,24 +6,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -32,14 +25,12 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,11 +41,18 @@ import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.CategoriaDao
 import dev.lucasgola.financas.data.Lancamento
 import dev.lucasgola.financas.data.LancamentoDao
+import dev.lucasgola.financas.data.NotaDao
+import dev.lucasgola.financas.data.NotaFiscal
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.TipoLancamento
+import dev.lucasgola.financas.ui.comum.CampoData
+import dev.lucasgola.financas.ui.comum.CampoValor
+import dev.lucasgola.financas.ui.comum.LinhaItem
+import dev.lucasgola.financas.ui.comum.LinhaTotal
+import dev.lucasgola.financas.ui.comum.ListaItensNota
+import dev.lucasgola.financas.ui.comum.SeletorCategoria
 import dev.lucasgola.financas.util.ZONA
 import dev.lucasgola.financas.util.dataLocal
-import dev.lucasgola.financas.util.formatar
 import dev.lucasgola.financas.util.formatarDecimalEdicao
 import dev.lucasgola.financas.util.meioDia
 import dev.lucasgola.financas.util.parseCentavosBr
@@ -67,7 +65,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 
 data class FormLancamento(
     val tipo: TipoLancamento = TipoLancamento.SAIDA,
@@ -80,14 +77,21 @@ data class FormLancamento(
     val erro: String? = null,
 )
 
+/** Nota fiscal vinculada ao lançamento (só leitura no formulário). */
+data class NotaVinculada(val nota: NotaFiscal, val itens: List<LinhaItem>)
+
 class LancamentoFormViewModel(
     private val lancamentoDao: LancamentoDao,
+    private val notaDao: NotaDao,
     categoriaDao: CategoriaDao,
     private val id: Long?,
 ) : ViewModel() {
 
     private val _form = MutableStateFlow(FormLancamento())
     val form: StateFlow<FormLancamento> = _form.asStateFlow()
+
+    private val _nota = MutableStateFlow<NotaVinculada?>(null)
+    val nota: StateFlow<NotaVinculada?> = _nota.asStateFlow()
 
     val categorias: StateFlow<List<Categoria>> = categoriaDao.observarTodas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -109,6 +113,14 @@ class LancamentoFormViewModel(
                     descricao = l.descricao,
                     formaPagamento = l.formaPagamento.orEmpty(),
                     observacao = l.observacao.orEmpty(),
+                )
+            }
+            notaDao.buscarPorLancamento(id)?.let { n ->
+                _nota.value = NotaVinculada(
+                    nota = n,
+                    itens = notaDao.itens(n.id).map {
+                        LinhaItem(it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos)
+                    },
                 )
             }
         }
@@ -164,13 +176,13 @@ class LancamentoFormViewModel(
 @Composable
 fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> Unit) {
     val vm: LancamentoFormViewModel = viewModel(key = "lancamento-$lancamentoId") {
-        LancamentoFormViewModel(db.lancamentoDao(), db.categoriaDao(), lancamentoId)
+        LancamentoFormViewModel(db.lancamentoDao(), db.notaDao(), db.categoriaDao(), lancamentoId)
     }
     val form by vm.form.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
+    val nota by vm.nota.collectAsStateWithLifecycle()
 
     var confirmarExclusao by remember { mutableStateOf(false) }
-    var escolhendoData by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -207,27 +219,8 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
                 }
             }
 
-            OutlinedTextField(
-                value = form.valorTexto,
-                onValueChange = { v -> vm.alterar { it.copy(valorTexto = v.filter { c -> c.isDigit() || c == ',' || c == '.' }) } },
-                label = { Text("Valor (R$)") },
-                placeholder = { Text("0,00") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedTextField(
-                value = form.data.formatar(),
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Data") },
-                trailingIcon = {
-                    IconButton(onClick = { escolhendoData = true }) { Icon(Icons.Default.DateRange, "Escolher data") }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
+            CampoValor(form.valorTexto, { v -> vm.alterar { it.copy(valorTexto = v) } })
+            CampoData(form.data, { d -> vm.alterar { it.copy(data = d) } })
             SeletorCategoria(
                 categorias = categorias.filter { (it.ativa && it.tipo.aceita(form.tipo)) || it.id == form.categoriaId },
                 selecionada = form.categoriaId,
@@ -259,26 +252,9 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
             form.erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             Button(onClick = { vm.salvar(onFechar) }, modifier = Modifier.fillMaxWidth()) { Text("Salvar") }
-        }
-    }
 
-    if (escolhendoData) {
-        val estado = rememberDatePickerState(
-            initialSelectedDateMillis = form.data.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { escolhendoData = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    // O DatePicker trabalha em UTC: converter com UTC evita cair no dia anterior.
-                    estado.selectedDateMillis?.let { ms ->
-                        vm.alterar { it.copy(data = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()) }
-                    }
-                    escolhendoData = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { escolhendoData = false }) { Text("Cancelar") } },
-        ) { DatePicker(estado) }
+            nota?.let { NotaDoLancamento(it) }
+        }
     }
 
     if (confirmarExclusao) {
@@ -294,22 +270,22 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SeletorCategoria(categorias: List<Categoria>, selecionada: Long?, onSelecionar: (Long) -> Unit) {
-    var aberto by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = aberto, onExpandedChange = { aberto = it }) {
-        OutlinedTextField(
-            value = categorias.firstOrNull { it.id == selecionada }?.nome.orEmpty(),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Categoria") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = aberto) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
-            categorias.forEach { c ->
-                DropdownMenuItem(text = { Text(c.nome) }, onClick = { onSelecionar(c.id); aberto = false })
+private fun NotaDoLancamento(v: NotaVinculada) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("NFC-e nº ${v.nota.numero} · série ${v.nota.serie}", style = MaterialTheme.typography.titleSmall)
+            if (v.itens.isEmpty()) {
+                Text(
+                    "Nota sem itens (valor informado manualmente).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                ListaItensNota(v.itens)
+                v.nota.valorBrutoCentavos?.let { LinhaTotal("Subtotal", it) }
+                if (v.nota.descontoCentavos > 0) LinhaTotal("Descontos", -v.nota.descontoCentavos)
+                v.nota.valorTotalCentavos?.let { LinhaTotal("Total pago", it, destaque = true) }
             }
         }
     }

@@ -16,7 +16,14 @@ enum class TipoCategoria { ENTRADA, SAIDA, AMBOS;
 
 enum class OrigemLancamento { MANUAL, NFCE }
 
-enum class StatusNota { PENDENTE, IMPORTADA, ERRO }
+enum class StatusNota {
+    /** Lida, mas a consulta à SEFAZ falhou; não entra nos totais. */
+    PENDENTE,
+    /** Consulta OK: tem itens e lançamento. */
+    IMPORTADA,
+    /** Consulta nunca deu certo; valor informado à mão, sem itens. */
+    MANUAL,
+}
 
 @Entity(tableName = "categoria")
 data class Categoria(

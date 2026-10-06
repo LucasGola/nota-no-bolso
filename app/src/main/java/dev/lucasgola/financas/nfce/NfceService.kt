@@ -14,6 +14,15 @@ class NfceService(
         .readTimeout(20, TimeUnit.SECONDS)
         .build(),
 ) {
+    companion object {
+        /**
+         * URL de consulta a partir só da chave (QR ilegível, chave digitada).
+         * Usa o formato do QR v3 (chave|3|tpAmb), que não exige o hash do QR v2.
+         */
+        fun urlConsultaSp(chave: ChaveAcesso): String =
+            "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx?p=${chave.valor}%7C3%7C1"
+    }
+
     suspend fun consultar(urlQrCode: String): NotaImportada = withContext(Dispatchers.IO) {
         val chave = ChaveAcesso.doQrCode(urlQrCode) ?: throw NfceParseException("QR Code não é de uma NFC-e válida")
         if (chave.uf != ChaveAcesso.UF_SP) throw NfceParseException("Por enquanto só notas de SP são suportadas")

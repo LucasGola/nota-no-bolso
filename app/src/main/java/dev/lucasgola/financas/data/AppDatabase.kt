@@ -28,6 +28,8 @@ class Conversores {
 abstract class AppDatabase : RoomDatabase() {
     abstract fun categoriaDao(): CategoriaDao
     abstract fun lancamentoDao(): LancamentoDao
+    abstract fun estabelecimentoDao(): EstabelecimentoDao
+    abstract fun notaDao(): NotaDao
 
     companion object {
         const val NOME_ARQUIVO = "financas.db"

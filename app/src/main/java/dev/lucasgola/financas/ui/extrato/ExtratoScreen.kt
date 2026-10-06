@@ -17,9 +17,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,9 +34,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,7 +51,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.LancamentoDao
+import dev.lucasgola.financas.data.NotaDao
 import dev.lucasgola.financas.data.TipoLancamento
+import dev.lucasgola.financas.R
+import dev.lucasgola.financas.ui.importar.DialogoDigitarChave
 import dev.lucasgola.financas.ui.theme.CoresValor
 import dev.lucasgola.financas.util.dataLocal
 import dev.lucasgola.financas.util.formatarDiaExtrato
@@ -66,7 +79,10 @@ data class ExtratoUi(
 private fun LancamentoComCategoria.valorComSinal(): Long =
     if (lancamento.tipo == TipoLancamento.ENTRADA) lancamento.valorCentavos else -lancamento.valorCentavos
 
-class ExtratoViewModel(dao: LancamentoDao) : ViewModel() {
+class ExtratoViewModel(dao: LancamentoDao, notaDao: NotaDao) : ViewModel() {
+    val pendentes: StateFlow<Int> = notaDao.contarPendentes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     // Filtros chegam no M3; por ora o extrato mostra tudo.
     val ui: StateFlow<ExtratoUi> = dao.observarExtrato()
         .map { lista ->
@@ -83,23 +99,73 @@ class ExtratoViewModel(dao: LancamentoDao) : ViewModel() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExtratoScreen(db: AppDatabase, onNovo: () -> Unit, onAbrir: (Long) -> Unit) {
-    val vm: ExtratoViewModel = viewModel { ExtratoViewModel(db.lancamentoDao()) }
+fun ExtratoScreen(
+    db: AppDatabase,
+    onNovo: () -> Unit,
+    onAbrir: (Long) -> Unit,
+    onLerQr: () -> Unit,
+    onImportarUrl: (String) -> Unit,
+    onVerPendentes: () -> Unit,
+) {
+    val vm: ExtratoViewModel = viewModel { ExtratoViewModel(db.lancamentoDao(), db.notaDao()) }
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val pendentes by vm.pendentes.collectAsStateWithLifecycle()
+    var menuAberto by remember { mutableStateOf(false) }
+    var digitandoChave by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Extrato") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Extrato") },
+                actions = {
+                    IconButton(onClick = { menuAberto = true }) { Icon(Icons.Default.MoreVert, "Mais opções") }
+                    DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Digitar chave de acesso") },
+                            onClick = { menuAberto = false; digitandoChave = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Notas pendentes ($pendentes)") },
+                            onClick = { menuAberto = false; onVerPendentes() },
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNovo) { Icon(Icons.Default.Add, contentDescription = "Novo lançamento") }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallFloatingActionButton(onClick = onNovo) {
+                    Icon(Icons.Default.Add, contentDescription = "Novo lançamento manual")
+                }
+                ExtendedFloatingActionButton(
+                    onClick = onLerQr,
+                    icon = { Icon(painterResource(R.drawable.ic_qr), contentDescription = null) },
+                    text = { Text("Ler nota") },
+                )
+            }
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            if (pendentes > 0) item {
+                Card(
+                    onClick = onVerPendentes,
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                ) {
+                    Text(
+                        if (pendentes == 1) "1 nota pendente de importação. Toque para ver."
+                        else "$pendentes notas pendentes de importação. Toque para ver.",
+                        Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
             item { Resumo(ui) }
             if (!ui.carregando && ui.dias.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            "Nenhum lançamento ainda.\nToque em + para adicionar.",
+                            "Nenhum lançamento ainda.\nLeia o QR de uma nota ou toque em + para lançar à mão.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -114,6 +180,13 @@ fun ExtratoScreen(db: AppDatabase, onNovo: () -> Unit, onAbrir: (Long) -> Unit) 
                 }
             }
         }
+    }
+
+    if (digitandoChave) {
+        DialogoDigitarChave(
+            onConfirmar = { url -> digitandoChave = false; onImportarUrl(url) },
+            onCancelar = { digitandoChave = false },
+        )
     }
 }
 

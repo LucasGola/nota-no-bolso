@@ -55,7 +55,7 @@ Usuário único, um dispositivo, baixo volume (estimativa: < 100 notas/mês, < 5
 |---|---|---|
 | Linguagem/UI | Kotlin + Jetpack Compose | Nativo, padrão atual do Android, app só Android |
 | Persistência | Room | Padrão oficial, migrações, queries tipadas, Flow reativo |
-| Leitura de QR | CameraX + ML Kit Barcode Scanning (modelo embarcado) | Grátis, offline, robusto em cupom amassado/pouca luz |
+| Leitura de QR | Google Code Scanner (`play-services-code-scanner`, ML Kit por baixo) | Tela de câmera pronta, sem permissão de câmera no app, sem código de câmera para manter. Exige Google Play services. Plano B, se a tela não atender: CameraX + ML Kit |
 | HTTP + parse | OkHttp + Jsoup | Maduros, simples |
 | Gráficos | Vico (Compose) | Nativo Compose, mantido. Alternativa: MPAndroidChart (mais antigo, via `AndroidView`) |
 | PDF | `android.graphics.pdf.PdfDocument` (nativo) | Sem dependência extra; relatório tabular simples |
@@ -131,6 +131,10 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Antes de salvar, exibe tela de revisão onde posso ajustar categoria, data e descrição.
 - [ ] A categoria é pré-preenchida com a última usada para aquele CNPJ.
 - [ ] Sem internet ou com falha de parse: nota salva como **PENDENTE** com dados da chave (CNPJ, mês, número). Há ação "Tentar novamente" individual e "Reprocessar pendentes".
+  - "Tentar novamente" passa pela tela de revisão. "Reprocessar pendentes" importa direto, sem revisão: usa a última categoria do CNPJ (ou "Outros") e a razão social como descrição; tudo continua editável no extrato.
+  - Pendente que nunca for consultada pode receber o valor à mão: vira lançamento sem itens, com status `MANUAL`.
+- [ ] Nota cancelada ou denegada é recusada com mensagem clara e não vira pendente (tentar de novo não adiantaria).
+- [ ] Chave digitada é consultada montando a URL no formato do QR v3 (`chave|3|1`). **Não verificado** para notas emitidas com QR v2.
 - [ ] Notas pendentes **não** entram nos totais até serem importadas ou completadas manualmente (valor informado à mão).
 - [ ] Testado com ≥ 10 cupons reais de pelo menos 5 estabelecimentos diferentes de SP.
 
