@@ -1,0 +1,521 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "6a1a6739607116063b36126ac9458573",
+    "entities": [
+      {
+        "tableName": "categoria",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nome` TEXT NOT NULL, `cor` INTEGER NOT NULL, `tipo` TEXT NOT NULL, `ativa` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nome",
+            "columnName": "nome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cor",
+            "columnName": "cor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ativa",
+            "columnName": "ativa",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "estabelecimento",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cnpj` TEXT NOT NULL, `razaoSocial` TEXT NOT NULL, `endereco` TEXT NOT NULL, `categoriaPadraoId` INTEGER, FOREIGN KEY(`categoriaPadraoId`) REFERENCES `categoria`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cnpj",
+            "columnName": "cnpj",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "razaoSocial",
+            "columnName": "razaoSocial",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endereco",
+            "columnName": "endereco",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoriaPadraoId",
+            "columnName": "categoriaPadraoId",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_estabelecimento_cnpj",
+            "unique": true,
+            "columnNames": [
+              "cnpj"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_estabelecimento_cnpj` ON `${TABLE_NAME}` (`cnpj`)"
+          },
+          {
+            "name": "index_estabelecimento_categoriaPadraoId",
+            "unique": false,
+            "columnNames": [
+              "categoriaPadraoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_estabelecimento_categoriaPadraoId` ON `${TABLE_NAME}` (`categoriaPadraoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "categoria",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoriaPadraoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "lancamento",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tipo` TEXT NOT NULL, `valorCentavos` INTEGER NOT NULL, `dataHora` INTEGER NOT NULL, `descricao` TEXT NOT NULL, `categoriaId` INTEGER NOT NULL, `origem` TEXT NOT NULL, `formaPagamento` TEXT, `estabelecimentoId` INTEGER, `observacao` TEXT, `criadoEm` INTEGER NOT NULL, `atualizadoEm` INTEGER NOT NULL, FOREIGN KEY(`categoriaId`) REFERENCES `categoria`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`estabelecimentoId`) REFERENCES `estabelecimento`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valorCentavos",
+            "columnName": "valorCentavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataHora",
+            "columnName": "dataHora",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descricao",
+            "columnName": "descricao",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoriaId",
+            "columnName": "categoriaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origem",
+            "columnName": "origem",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formaPagamento",
+            "columnName": "formaPagamento",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "estabelecimentoId",
+            "columnName": "estabelecimentoId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "observacao",
+            "columnName": "observacao",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "criadoEm",
+            "columnName": "criadoEm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "atualizadoEm",
+            "columnName": "atualizadoEm",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_lancamento_dataHora",
+            "unique": false,
+            "columnNames": [
+              "dataHora"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lancamento_dataHora` ON `${TABLE_NAME}` (`dataHora`)"
+          },
+          {
+            "name": "index_lancamento_categoriaId",
+            "unique": false,
+            "columnNames": [
+              "categoriaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lancamento_categoriaId` ON `${TABLE_NAME}` (`categoriaId`)"
+          },
+          {
+            "name": "index_lancamento_estabelecimentoId",
+            "unique": false,
+            "columnNames": [
+              "estabelecimentoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lancamento_estabelecimentoId` ON `${TABLE_NAME}` (`estabelecimentoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "categoria",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoriaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "estabelecimento",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "estabelecimentoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "nota_fiscal",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chaveAcesso` TEXT NOT NULL, `urlQr` TEXT NOT NULL, `uf` TEXT NOT NULL, `numero` INTEGER NOT NULL, `serie` INTEGER NOT NULL, `dataEmissao` INTEGER, `valorBrutoCentavos` INTEGER, `descontoCentavos` INTEGER NOT NULL, `valorTotalCentavos` INTEGER, `status` TEXT NOT NULL, `erroMsg` TEXT, `lancamentoId` INTEGER, `importadaEm` INTEGER NOT NULL, FOREIGN KEY(`lancamentoId`) REFERENCES `lancamento`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chaveAcesso",
+            "columnName": "chaveAcesso",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urlQr",
+            "columnName": "urlQr",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uf",
+            "columnName": "uf",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "numero",
+            "columnName": "numero",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serie",
+            "columnName": "serie",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataEmissao",
+            "columnName": "dataEmissao",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "valorBrutoCentavos",
+            "columnName": "valorBrutoCentavos",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "descontoCentavos",
+            "columnName": "descontoCentavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valorTotalCentavos",
+            "columnName": "valorTotalCentavos",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "erroMsg",
+            "columnName": "erroMsg",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lancamentoId",
+            "columnName": "lancamentoId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "importadaEm",
+            "columnName": "importadaEm",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_nota_fiscal_chaveAcesso",
+            "unique": true,
+            "columnNames": [
+              "chaveAcesso"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_nota_fiscal_chaveAcesso` ON `${TABLE_NAME}` (`chaveAcesso`)"
+          },
+          {
+            "name": "index_nota_fiscal_lancamentoId",
+            "unique": false,
+            "columnNames": [
+              "lancamentoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_nota_fiscal_lancamentoId` ON `${TABLE_NAME}` (`lancamentoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "lancamento",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lancamentoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "item_nota",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `notaId` INTEGER NOT NULL, `ordem` INTEGER NOT NULL, `codigo` TEXT NOT NULL, `descricao` TEXT NOT NULL, `quantidade` TEXT NOT NULL, `unidade` TEXT NOT NULL, `valorUnitario` TEXT NOT NULL, `descontoCentavos` INTEGER NOT NULL, `valorTotalCentavos` INTEGER NOT NULL, `categoriaId` INTEGER, FOREIGN KEY(`notaId`) REFERENCES `nota_fiscal`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoriaId`) REFERENCES `categoria`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notaId",
+            "columnName": "notaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordem",
+            "columnName": "ordem",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "codigo",
+            "columnName": "codigo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descricao",
+            "columnName": "descricao",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantidade",
+            "columnName": "quantidade",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unidade",
+            "columnName": "unidade",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valorUnitario",
+            "columnName": "valorUnitario",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descontoCentavos",
+            "columnName": "descontoCentavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valorTotalCentavos",
+            "columnName": "valorTotalCentavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoriaId",
+            "columnName": "categoriaId",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_item_nota_notaId",
+            "unique": false,
+            "columnNames": [
+              "notaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_item_nota_notaId` ON `${TABLE_NAME}` (`notaId`)"
+          },
+          {
+            "name": "index_item_nota_categoriaId",
+            "unique": false,
+            "columnNames": [
+              "categoriaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_item_nota_categoriaId` ON `${TABLE_NAME}` (`categoriaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "nota_fiscal",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "notaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "categoria",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoriaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6a1a6739607116063b36126ac9458573')"
+    ]
+  }
+}

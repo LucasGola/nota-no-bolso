@@ -1,0 +1,14 @@
+# Normaliza quebras de linha no repositório (LF), independentemente do SO.
+* text=auto
+
+# Scripts de shell precisam de LF para rodar no CI (Linux).
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Scripts do Windows precisam de CRLF.
+*.bat text eol=crlf
+
+# Binários
+*.jar binary
+*.png binary
+*.jks binary

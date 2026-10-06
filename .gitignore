@@ -1,0 +1,32 @@
+# Gradle / build
+.gradle/
+build/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+
+# Configuração local (caminho do SDK de cada máquina)
+/local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+*.hprof
+
+# Artefatos gerados
+*.apk
+*.aab
+/app/release/
+/app/debug/
+
+# Assinatura: NUNCA versionar keystore, nem em base64
+*.jks
+*.keystore
+*.jks.b64
+keystore.properties
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
