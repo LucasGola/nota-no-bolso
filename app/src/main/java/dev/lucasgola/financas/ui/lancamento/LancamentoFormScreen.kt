@@ -39,6 +39,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.CategoriaDao
+import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.data.EstabelecimentoDao
 import dev.lucasgola.financas.data.Lancamento
 import dev.lucasgola.financas.data.LancamentoDao
 import dev.lucasgola.financas.data.NotaDao
@@ -53,6 +55,7 @@ import dev.lucasgola.financas.ui.comum.ListaItensNota
 import dev.lucasgola.financas.ui.comum.SeletorCategoria
 import dev.lucasgola.financas.util.ZONA
 import dev.lucasgola.financas.util.dataLocal
+import dev.lucasgola.financas.util.formatarCnpj
 import dev.lucasgola.financas.util.formatarDecimalEdicao
 import dev.lucasgola.financas.util.meioDia
 import dev.lucasgola.financas.util.parseCentavosBr
@@ -65,6 +68,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 data class FormLancamento(
     val tipo: TipoLancamento = TipoLancamento.SAIDA,
@@ -78,11 +82,17 @@ data class FormLancamento(
 )
 
 /** Nota fiscal vinculada ao lançamento (só leitura no formulário). */
-data class NotaVinculada(val nota: NotaFiscal, val itens: List<LinhaItem>)
+data class NotaVinculada(
+    val nota: NotaFiscal,
+    val itens: List<LinhaItem>,
+    val estabelecimento: Estabelecimento?,
+    val formaPagamento: String?,
+)
 
 class LancamentoFormViewModel(
     private val lancamentoDao: LancamentoDao,
     private val notaDao: NotaDao,
+    private val estabelecimentoDao: EstabelecimentoDao,
     categoriaDao: CategoriaDao,
     private val id: Long?,
 ) : ViewModel() {
@@ -121,6 +131,8 @@ class LancamentoFormViewModel(
                     itens = notaDao.itens(n.id).map {
                         LinhaItem(it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos)
                     },
+                    estabelecimento = original?.estabelecimentoId?.let { estabelecimentoDao.buscar(it) },
+                    formaPagamento = original?.formaPagamento,
                 )
             }
         }
@@ -176,7 +188,7 @@ class LancamentoFormViewModel(
 @Composable
 fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> Unit) {
     val vm: LancamentoFormViewModel = viewModel(key = "lancamento-$lancamentoId") {
-        LancamentoFormViewModel(db.lancamentoDao(), db.notaDao(), db.categoriaDao(), lancamentoId)
+        LancamentoFormViewModel(db.lancamentoDao(), db.notaDao(), db.estabelecimentoDao(), db.categoriaDao(), lancamentoId)
     }
     val form by vm.form.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
@@ -270,11 +282,29 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
     }
 }
 
+private val fmtEmissao = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+
 @Composable
 private fun NotaDoLancamento(v: NotaVinculada) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("NFC-e nº ${v.nota.numero} · série ${v.nota.serie}", style = MaterialTheme.typography.titleSmall)
+            v.estabelecimento?.let { e ->
+                Text(e.razaoSocial, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    listOf("CNPJ ${formatarCnpj(e.cnpj)}", e.endereco).filter { it.isNotBlank() }.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                listOfNotNull(
+                    "NFC-e nº ${v.nota.numero} · série ${v.nota.serie}",
+                    v.nota.dataEmissao?.let { "Emitida em ${it.atZone(ZONA).format(fmtEmissao)}" },
+                    v.formaPagamento?.let { "Pagamento: $it" },
+                ).joinToString("\n"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (v.itens.isEmpty()) {
                 Text(
                     "Nota sem itens (valor informado manualmente).",

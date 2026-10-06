@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -50,8 +52,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.LancamentoComCategoria
-import dev.lucasgola.financas.data.LancamentoDao
-import dev.lucasgola.financas.data.NotaDao
+import dev.lucasgola.financas.data.Categoria
+import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.filtro.ConsultaLancamentos
+import dev.lucasgola.financas.filtro.Filtro
+import dev.lucasgola.financas.ui.filtro.BarraFiltros
+import dev.lucasgola.financas.util.ZONA
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.R
 import dev.lucasgola.financas.ui.importar.DialogoDigitarChave
@@ -59,7 +65,12 @@ import dev.lucasgola.financas.ui.theme.CoresValor
 import dev.lucasgola.financas.util.dataLocal
 import dev.lucasgola.financas.util.formatarDiaExtrato
 import dev.lucasgola.financas.util.formatarMoeda
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -79,12 +90,23 @@ data class ExtratoUi(
 private fun LancamentoComCategoria.valorComSinal(): Long =
     if (lancamento.tipo == TipoLancamento.ENTRADA) lancamento.valorCentavos else -lancamento.valorCentavos
 
-class ExtratoViewModel(dao: LancamentoDao, notaDao: NotaDao) : ViewModel() {
-    val pendentes: StateFlow<Int> = notaDao.contarPendentes()
+@OptIn(ExperimentalCoroutinesApi::class)
+class ExtratoViewModel(db: AppDatabase, private val filtroGlobal: MutableStateFlow<Filtro>) : ViewModel() {
+    val pendentes: StateFlow<Int> = db.notaDao().contarPendentes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    // Filtros chegam no M3; por ora o extrato mostra tudo.
-    val ui: StateFlow<ExtratoUi> = dao.observarExtrato()
+    val filtro: StateFlow<Filtro> = filtroGlobal.asStateFlow()
+
+    val categorias: StateFlow<List<Categoria>> = db.categoriaDao().observarTodas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val estabelecimentos: StateFlow<List<Estabelecimento>> = db.estabelecimentoDao().observarTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
+
+    val ui: StateFlow<ExtratoUi> = filtroGlobal
+        .flatMapLatest { f -> db.lancamentoDao().observarFiltrado(ConsultaLancamentos.montar(f, LocalDate.now(ZONA)).paraRoom()) }
         .map { lista ->
             ExtratoUi(
                 entradasCentavos = lista.filter { it.lancamento.tipo == TipoLancamento.ENTRADA }.sumOf { it.lancamento.valorCentavos },
@@ -101,15 +123,19 @@ class ExtratoViewModel(dao: LancamentoDao, notaDao: NotaDao) : ViewModel() {
 @Composable
 fun ExtratoScreen(
     db: AppDatabase,
+    filtro: MutableStateFlow<Filtro>,
     onNovo: () -> Unit,
     onAbrir: (Long) -> Unit,
     onLerQr: () -> Unit,
     onImportarUrl: (String) -> Unit,
     onVerPendentes: () -> Unit,
 ) {
-    val vm: ExtratoViewModel = viewModel { ExtratoViewModel(db.lancamentoDao(), db.notaDao()) }
+    val vm: ExtratoViewModel = viewModel { ExtratoViewModel(db, filtro) }
     val ui by vm.ui.collectAsStateWithLifecycle()
     val pendentes by vm.pendentes.collectAsStateWithLifecycle()
+    val filtroAtual by vm.filtro.collectAsStateWithLifecycle()
+    val categorias by vm.categorias.collectAsStateWithLifecycle()
+    val estabelecimentos by vm.estabelecimentos.collectAsStateWithLifecycle()
     var menuAberto by remember { mutableStateOf(false) }
     var digitandoChave by remember { mutableStateOf(false) }
 
@@ -145,39 +171,52 @@ fun ExtratoScreen(
             }
         },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            if (pendentes > 0) item {
-                Card(
-                    onClick = onVerPendentes,
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                ) {
-                    Text(
-                        if (pendentes == 1) "1 nota pendente de importação. Toque para ver."
-                        else "$pendentes notas pendentes de importação. Toque para ver.",
-                        Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                }
-            }
-            item { Resumo(ui) }
-            if (!ui.carregando && ui.dias.isEmpty()) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            BarraFiltros(
+                filtro = filtroAtual,
+                categorias = categorias,
+                estabelecimentos = estabelecimentos,
+                onAlterar = vm::alterarFiltro,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+                if (pendentes > 0) item {
+                    Card(
+                        onClick = onVerPendentes,
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    ) {
                         Text(
-                            "Nenhum lançamento ainda.\nLeia o QR de uma nota ou toque em + para lançar à mão.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (pendentes == 1) "1 nota pendente de importação. Toque para ver."
+                            else "$pendentes notas pendentes de importação. Toque para ver.",
+                            Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
                     }
                 }
-            }
-            ui.dias.forEach { dia ->
-                item(key = "dia-${dia.data}") { CabecalhoDia(dia) }
-                items(dia.itens, key = { it.lancamento.id }) { item ->
-                    LinhaLancamento(item, onClick = { onAbrir(item.lancamento.id) })
-                    HorizontalDivider()
+                item { Resumo(ui) }
+                if (!ui.carregando && ui.dias.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                if (filtroAtual.temRestricoes) "Nenhum lançamento com estes filtros."
+                                else "Nenhum lançamento neste período.\nLeia o QR de uma nota ou toque em + para lançar à mão.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
                 }
+                ui.dias.forEach { dia ->
+                    item(key = "dia-${dia.data}") { CabecalhoDia(dia) }
+                    items(dia.itens, key = { it.lancamento.id }) { item ->
+                        LinhaLancamento(item, onClick = { onAbrir(item.lancamento.id) })
+                        HorizontalDivider()
+                    }
+                }
+                // Espaço para os botões flutuantes não cobrirem o último lançamento.
+                item { Spacer(Modifier.height(140.dp)) }
             }
         }
     }

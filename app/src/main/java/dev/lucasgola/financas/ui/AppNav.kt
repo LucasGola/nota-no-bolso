@@ -80,6 +80,7 @@ fun AppNav() {
             composable(Aba.EXTRATO.rota) {
                 ExtratoScreen(
                     db = app.db,
+                    filtro = app.filtro,
                     onNovo = { nav.navigate(rotaLancamento(null)) },
                     onAbrir = { nav.navigate(rotaLancamento(it)) },
                     onLerQr = {

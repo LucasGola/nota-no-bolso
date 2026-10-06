@@ -5,7 +5,9 @@ import androidx.room.Delete
 import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -43,14 +45,9 @@ data class LancamentoComCategoria(
 
 @Dao
 interface LancamentoDao {
-    @Query(
-        """
-        SELECT l.*, c.nome AS categoriaNome, c.cor AS categoriaCor
-        FROM lancamento l JOIN categoria c ON c.id = l.categoriaId
-        ORDER BY l.dataHora DESC, l.id DESC
-        """
-    )
-    fun observarExtrato(): Flow<List<LancamentoComCategoria>>
+    /** Consulta montada por [dev.lucasgola.financas.filtro.ConsultaLancamentos]. */
+    @RawQuery(observedEntities = [Lancamento::class, Categoria::class, NotaFiscal::class, ItemNota::class])
+    fun observarFiltrado(consulta: SupportSQLiteQuery): Flow<List<LancamentoComCategoria>>
 
     @Query("SELECT * FROM lancamento WHERE id = :id")
     suspend fun buscar(id: Long): Lancamento?
@@ -67,6 +64,12 @@ interface LancamentoDao {
 
 @Dao
 interface EstabelecimentoDao {
+    @Query("SELECT * FROM estabelecimento ORDER BY razaoSocial COLLATE NOCASE")
+    fun observarTodos(): Flow<List<Estabelecimento>>
+
+    @Query("SELECT * FROM estabelecimento WHERE id = :id")
+    suspend fun buscar(id: Long): Estabelecimento?
+
     @Query("SELECT * FROM estabelecimento WHERE cnpj = :cnpj")
     suspend fun buscarPorCnpj(cnpj: String): Estabelecimento?
 

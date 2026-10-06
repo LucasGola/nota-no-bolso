@@ -154,7 +154,11 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Todos os filtros da seção 4 funcionam e podem ser combinados; o filtro ativo fica visível (chips) e pode ser limpo com 1 toque.
 - [ ] Tocar num lançamento de NFC-e abre o detalhe da nota: emitente, data/hora, forma de pagamento e **todos os itens** com código, descrição, quantidade, unidade, valor unitário, desconto (se houver) e valor total, além de subtotal, descontos e total pago.
 - [ ] A busca textual encontra notas pelo nome de um item (ex.: "leite" lista todas as notas que tenham leite).
-- [ ] Rolagem fluida com 5.000 lançamentos.
+- [ ] Rolagem fluida com 5.000 lançamentos. **Não medido ainda**: a filtragem é feita em SQL e a lista é preguiçosa, mas falta testar com volume real.
+- Notas do M3:
+  - O período padrão é o mês atual, com setas para navegar entre meses. O filtro é único no app e vale também para gráficos e exportação.
+  - A busca não diferencia maiúsculas de minúsculas, mas **diferencia acentos** ("pao" não encontra "PÃO"), porque é uma limitação do `LIKE` do SQLite. Se incomodar no uso real, a solução é gravar uma coluna normalizada (sem acentos) para busca.
+  - O filtro não sobrevive ao fechamento do app: ao reabrir, volta para o mês atual sem restrições.
 
 ### CA-06 — Gráficos
 - [ ] **Gastos por categoria** (barras horizontais ordenadas, com valor e %) no período.
