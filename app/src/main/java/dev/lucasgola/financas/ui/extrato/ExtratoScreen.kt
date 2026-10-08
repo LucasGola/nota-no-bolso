@@ -132,6 +132,7 @@ fun ExtratoScreen(
     onLerQr: () -> Unit,
     onImportarUrl: (String) -> Unit,
     onVerPendentes: () -> Unit,
+    onBackup: () -> Unit,
 ) {
     val vm: ExtratoViewModel = viewModel { ExtratoViewModel(db, filtro) }
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -161,6 +162,10 @@ fun ExtratoScreen(
                         DropdownMenuItem(
                             text = { Text("Notas pendentes ($pendentes)") },
                             onClick = { menuAberto = false; onVerPendentes() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Backup e restauração") },
+                            onClick = { menuAberto = false; onBackup() },
                         )
                     }
                 },

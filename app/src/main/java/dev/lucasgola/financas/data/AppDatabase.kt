@@ -30,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lancamentoDao(): LancamentoDao
     abstract fun estabelecimentoDao(): EstabelecimentoDao
     abstract fun notaDao(): NotaDao
+    abstract fun backupDao(): BackupDao
 
     companion object {
         const val NOME_ARQUIVO = "financas.db"

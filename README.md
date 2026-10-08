@@ -38,6 +38,13 @@ Em *Settings → Secrets and variables → Actions*, crie:
 
 **Guarde o `release.jks` e as senhas fora do repositório.** Se perder o keystore, o Android não aceita atualizar o app instalado: será preciso desinstalar, e isso apaga os dados locais.
 
+**Trocar o APK debug pelo release apaga os dados.** Os dois têm o mesmo `applicationId`, mas assinaturas diferentes, então o Android recusa instalar um por cima do outro. Antes de trocar: *Extrato → ⋮ → Backup e restauração → Salvar backup…*, desinstale, instale o release e restaure o arquivo.
+
+## Backup
+
+- **Auto Backup do Android:** o banco vai para a conta Google do aparelho (se o backup estiver ativado nas configurações) e volta ao reinstalar o app ou configurar um celular novo. Regras em `res/xml/regras_backup.xml` e `regras_extracao_dados.xml`.
+- **Arquivo `.json`:** *Extrato → ⋮ → Backup e restauração*. Contém todas as tabelas, com os ids preservados; restaurar substitui todos os dados numa única transação (se algo falhar, nada muda). Backups de versões mais novas do app são recusados.
+
 ## Fixtures de NFC-e
 
 `app/src/test/resources/nfce/` guarda HTMLs reais da SEFAZ usados nos testes do parser. Quando a SEFAZ mudar o layout, esses testes quebram primeiro. Ao adicionar cupons, confira se não há CPF do consumidor no HTML.

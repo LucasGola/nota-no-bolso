@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup no Android 11 ou anterior: só o banco (o cache de exportações fica de fora). -->
+<full-backup-content>
+    <include domain="database" path="." />
+</full-backup-content>

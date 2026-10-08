@@ -82,4 +82,5 @@ dependencies {
     testImplementation(libs.junit)
     // Executa o SQL gerado pelos filtros num SQLite real, na JVM.
     testImplementation(libs.sqlite.jdbc)
+    testImplementation(libs.org.json)
 }

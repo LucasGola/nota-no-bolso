@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.lucasgola.financas.FinancasApp
 import dev.lucasgola.financas.R
+import dev.lucasgola.financas.ui.backup.BackupScreen
 import dev.lucasgola.financas.ui.categorias.CategoriasScreen
 import dev.lucasgola.financas.ui.extrato.ExtratoScreen
 import dev.lucasgola.financas.ui.graficos.GraficosScreen
@@ -45,6 +46,7 @@ private const val ROTA_IMPORTAR = "importar?qr={qr}"
 private fun rotaImportar(conteudoQr: String) = "importar?qr=${Uri.encode(conteudoQr)}"
 
 private const val ROTA_PENDENTES = "pendentes"
+private const val ROTA_BACKUP = "backup"
 
 @Composable
 fun AppNav() {
@@ -87,6 +89,7 @@ fun AppNav() {
                     },
                     onImportarUrl = { nav.navigate(rotaImportar(it)) },
                     onVerPendentes = { nav.navigate(ROTA_PENDENTES) },
+                    onBackup = { nav.navigate(ROTA_BACKUP) },
                 )
             }
             composable(Aba.GRAFICOS.rota) {
@@ -124,6 +127,9 @@ fun AppNav() {
                     onTentarNovamente = { url -> nav.navigate(rotaImportar(url)) },
                     onFechar = { nav.popBackStack() },
                 )
+            }
+            composable(ROTA_BACKUP) {
+                BackupScreen(repo = app.backup, filtro = app.filtro, onFechar = { nav.popBackStack() })
             }
         }
     }

@@ -196,6 +196,13 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Exportar backup completo para arquivo e restaurar a partir dele (com confirmação, substitui os dados atuais).
 - [ ] Restaurar um backup num aparelho limpo reproduz exatamente os mesmos totais.
 
+**Notas do M6 (2026-10-08):**
+- Auto Backup: `allowBackup` com regras explícitas (`regras_backup.xml` até o Android 11, `regras_extracao_dados.xml` no 12+) que incluem só o banco; o cache de exportações fica de fora. Depende de o backup do Google estar ativado no aparelho.
+- Arquivo de backup: JSON versionado (*Extrato → ⋮ → Backup e restauração*), com todas as tabelas e os ids preservados. A restauração mostra o conteúdo do arquivo e o que existe hoje, pede confirmação e substitui tudo numa única transação; se qualquer linha falhar, nada muda. Backups de uma versão mais nova do app são recusados. Depois de restaurar, o filtro volta ao padrão, porque os ids de categoria podem ter mudado.
+- Testes: a ida e volta do JSON reproduz os mesmos dados, inclusive nulos, escala de decimais (`10.10`) e o texto `"null"`. Arquivos inválidos, corrompidos ou de versão futura são rejeitados.
+- **Não verificado em aparelho:** o emulador não subiu nesta sessão (a máquina estava sem memória livre). Faltam: salvar → limpar dados → restaurar e conferir os totais; e o Auto Backup real (`adb shell bmgr backupnow dev.lucasgola.financas`, desinstalar e reinstalar).
+- Trocar o APK debug pelo release exige desinstalar (assinaturas diferentes), o que apaga os dados. Antes, é preciso salvar um backup em arquivo. Está no README.
+
 ### CA-10 — CI/CD (GitHub Actions)
 - [ ] Todo push (qualquer branch) e PR executa: build `assembleDebug`, testes unitários e Android Lint.
 - [ ] Falha em qualquer etapa marca o commit como vermelho.

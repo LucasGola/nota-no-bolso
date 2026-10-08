@@ -13,6 +13,7 @@ okhttp = "5.5.0"
 codeScanner = "16.1.0"
 junit = "4.13.2"
 sqliteJdbc = "3.53.4.0"
+orgJson = "20260814"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -34,6 +35,8 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
 junit = { module = "junit:junit", version.ref = "junit" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
+# O org.json do android.jar é só stub nos testes JVM; esta é a implementação de referência.
+org-json = { module = "org.json:json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

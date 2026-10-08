@@ -6,6 +6,8 @@
     <application
         android:name=".FinancasApp"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/regras_extracao_dados"
+        android:fullBackupContent="@xml/regras_backup"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
