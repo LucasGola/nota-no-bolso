@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arquivos que o app pode compartilhar com outros apps (exportações geradas no cache). -->
+<paths>
+    <cache-path name="exportacoes" path="exportacoes/" />
+</paths>

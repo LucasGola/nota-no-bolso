@@ -2,6 +2,7 @@ package dev.lucasgola.financas
 
 import android.app.Application
 import dev.lucasgola.financas.data.AppDatabase
+import dev.lucasgola.financas.export.Exportador
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.nfce.ImportacaoRepository
 import dev.lucasgola.financas.nfce.NfceService
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FinancasApp : Application() {
     val db: AppDatabase by lazy { AppDatabase.criar(this) }
     val importacao: ImportacaoRepository by lazy { ImportacaoRepository(db, NfceService()) }
+    val exportador: Exportador by lazy { Exportador(this, db) }
 
     /** Filtro único, compartilhado por extrato, gráficos e exportação. Vive enquanto o processo viver. */
     val filtro = MutableStateFlow(Filtro())

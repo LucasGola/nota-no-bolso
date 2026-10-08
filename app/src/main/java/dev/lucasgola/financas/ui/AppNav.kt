@@ -75,6 +75,7 @@ fun AppNav() {
                 ExtratoScreen(
                     db = app.db,
                     filtro = app.filtro,
+                    exportador = app.exportador,
                     onNovo = { nav.navigate(rotaLancamento(null)) },
                     onAbrir = { nav.navigate(rotaLancamento(it)) },
                     onLerQr = {

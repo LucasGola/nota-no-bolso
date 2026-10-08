@@ -56,6 +56,8 @@ import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Filtro
+import dev.lucasgola.financas.export.Exportador
+import dev.lucasgola.financas.ui.exportar.DialogoExportar
 import dev.lucasgola.financas.ui.filtro.BarraFiltros
 import dev.lucasgola.financas.util.ZONA
 import dev.lucasgola.financas.data.TipoLancamento
@@ -124,6 +126,7 @@ class ExtratoViewModel(db: AppDatabase, private val filtroGlobal: MutableStateFl
 fun ExtratoScreen(
     db: AppDatabase,
     filtro: MutableStateFlow<Filtro>,
+    exportador: Exportador,
     onNovo: () -> Unit,
     onAbrir: (Long) -> Unit,
     onLerQr: () -> Unit,
@@ -138,6 +141,7 @@ fun ExtratoScreen(
     val estabelecimentos by vm.estabelecimentos.collectAsStateWithLifecycle()
     var menuAberto by remember { mutableStateOf(false) }
     var digitandoChave by remember { mutableStateOf(false) }
+    var exportando by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -146,6 +150,10 @@ fun ExtratoScreen(
                 actions = {
                     IconButton(onClick = { menuAberto = true }) { Icon(Icons.Default.MoreVert, "Mais opções") }
                     DropdownMenu(expanded = menuAberto, onDismissRequest = { menuAberto = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Exportar (CSV ou PDF)") },
+                            onClick = { menuAberto = false; exportando = true },
+                        )
                         DropdownMenuItem(
                             text = { Text("Digitar chave de acesso") },
                             onClick = { menuAberto = false; digitandoChave = true },
@@ -219,6 +227,16 @@ fun ExtratoScreen(
                 item { Spacer(Modifier.height(140.dp)) }
             }
         }
+    }
+
+    if (exportando) {
+        DialogoExportar(
+            exportador = exportador,
+            filtro = filtroAtual,
+            descricaoPeriodo = filtroAtual.periodo.rotulo(LocalDate.now(ZONA)) +
+                if (filtroAtual.temRestricoes) " (com filtros)" else "",
+            onFechar = { exportando = false },
+        )
     }
 
     if (digitandoChave) {

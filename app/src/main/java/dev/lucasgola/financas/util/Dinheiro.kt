@@ -59,3 +59,11 @@ fun formatarMoedaCompacta(centavos: Long): String {
     }
     return if (centavos < 0) "−$texto" else texto
 }
+
+/** Preço unitário: no mínimo 2 casas, preservando as extras (10,1 → 10,10 · 5,899 → 5,899). */
+fun formatarPrecoUnitario(valor: BigDecimal): String {
+    val nf = NumberFormat.getNumberInstance(LOCALE_BR)
+    nf.minimumFractionDigits = 2
+    nf.maximumFractionDigits = maxOf(valor.stripTrailingZeros().scale(), 2)
+    return nf.format(valor)
+}

@@ -185,6 +185,11 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Opção de incluir os itens de cada nota (descrição, qtd, unidade, valor unitário, valor total) abaixo do lançamento correspondente.
 - [ ] Paginação correta (cabeçalho da tabela repetido, número de página).
 - [ ] Mesmas opções de salvar/compartilhar do CSV.
+- Notas do M5:
+  - Exportação pelo menu ⋮ do extrato. Usa o filtro atual e oferece "Compartilhar" (share sheet) ou "Salvar no aparelho…" (seletor de arquivos do sistema).
+  - CSV: o valor sai com sinal (saída negativa), para a soma da coluna dar o saldo. Com itens, cada item vira uma linha que repete o lançamento; nesse modo, some a coluna "Valor do item". Textos que começam com `=`, `+`, `-` ou `@` recebem um apóstrofo na frente, para o Excel não executar fórmula vinda da descrição da nota (CSV injection).
+  - PDF: A4 com o `PdfDocument` nativo. A paginação repete o cabeçalho da tabela e nunca deixa um título de seção sozinho no pé da página (testado com 200 lançamentos).
+  - Verificado no emulador: o PDF com itens foi gerado, aberto e conferido, e o compartilhamento via FileProvider abriu a share sheet. **Não verificado:** "Salvar no aparelho" até o fim. O seletor abriu com o nome sugerido, mas o app Arquivos do emulador travou antes de concluir.
 
 ### CA-09 — Backup e restauração
 - [ ] Android Auto Backup habilitado para o banco.

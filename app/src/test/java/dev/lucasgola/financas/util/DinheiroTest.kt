@@ -46,6 +46,13 @@ class DinheiroTest {
     }
 
     @Test
+    fun `preco unitario tem no minimo duas casas e preserva as extras`() {
+        assertEquals("10,10", formatarPrecoUnitario(BigDecimal("10.1")))
+        assertEquals("5,899", formatarPrecoUnitario(BigDecimal("5.899")))
+        assertEquals("1.234,00", formatarPrecoUnitario(BigDecimal("1234")))
+    }
+
+    @Test
     fun `formatacao`() {
         assertEquals("1234,56", formatarDecimalEdicao(123456))
         assertEquals("0,432", formatarDecimalBr(BigDecimal("0.432")))

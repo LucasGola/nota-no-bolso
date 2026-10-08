@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.lucasgola.financas.util.formatarDecimalBr
+import dev.lucasgola.financas.util.formatarPrecoUnitario
 import dev.lucasgola.financas.util.formatarMoeda
 import java.math.BigDecimal
 
@@ -38,7 +39,7 @@ fun ListaItensNota(itens: List<LinhaItem>, modifier: Modifier = Modifier) {
                 Column(Modifier.weight(1f)) {
                     Text(item.descricao, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "${formatarDecimalBr(item.quantidade)} ${item.unidade} × R$ ${formatarDecimalBr(item.valorUnitario)}" +
+                        "${formatarDecimalBr(item.quantidade)} ${item.unidade} × R$ ${formatarPrecoUnitario(item.valorUnitario)}" +
                             if (item.codigo.isNotBlank()) "  ·  cód. ${item.codigo}" else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

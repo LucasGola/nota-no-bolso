@@ -15,6 +15,9 @@ interface CategoriaDao {
     @Query("SELECT * FROM categoria ORDER BY ativa DESC, nome COLLATE NOCASE")
     fun observarTodas(): Flow<List<Categoria>>
 
+    @Query("SELECT * FROM categoria")
+    suspend fun listarTodas(): List<Categoria>
+
     @Insert
     suspend fun inserir(categoria: Categoria): Long
 
@@ -49,6 +52,10 @@ interface LancamentoDao {
     @RawQuery(observedEntities = [Lancamento::class, Categoria::class, NotaFiscal::class, ItemNota::class])
     fun observarFiltrado(consulta: SupportSQLiteQuery): Flow<List<LancamentoComCategoria>>
 
+    /** Versão pontual da consulta filtrada (exportação). */
+    @RawQuery
+    suspend fun listarFiltrado(consulta: SupportSQLiteQuery): List<LancamentoComCategoria>
+
     @Query("SELECT * FROM lancamento WHERE id = :id")
     suspend fun buscar(id: Long): Lancamento?
 
@@ -66,6 +73,9 @@ interface LancamentoDao {
 interface EstabelecimentoDao {
     @Query("SELECT * FROM estabelecimento ORDER BY razaoSocial COLLATE NOCASE")
     fun observarTodos(): Flow<List<Estabelecimento>>
+
+    @Query("SELECT * FROM estabelecimento")
+    suspend fun listarTodos(): List<Estabelecimento>
 
     @Query("SELECT * FROM estabelecimento WHERE id = :id")
     suspend fun buscar(id: Long): Estabelecimento?
@@ -99,6 +109,12 @@ interface NotaDao {
 
     @Query("SELECT * FROM item_nota WHERE notaId = :notaId ORDER BY ordem")
     suspend fun itens(notaId: Long): List<ItemNota>
+
+    @Query("SELECT * FROM nota_fiscal WHERE lancamentoId IN (:lancamentoIds)")
+    suspend fun notasDosLancamentos(lancamentoIds: List<Long>): List<NotaFiscal>
+
+    @Query("SELECT * FROM item_nota WHERE notaId IN (:notaIds) ORDER BY notaId, ordem")
+    suspend fun itensDasNotas(notaIds: List<Long>): List<ItemNota>
 
     @Insert
     suspend fun inserir(nota: NotaFiscal): Long
