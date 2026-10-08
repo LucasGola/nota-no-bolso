@@ -47,3 +47,15 @@ fun formatarCnpj(cnpj: String): String {
     if (d.length != 14) return cnpj
     return "${d.substring(0, 2)}.${d.substring(2, 5)}.${d.substring(5, 8)}/${d.substring(8, 12)}-${d.substring(12)}"
 }
+
+/** Rótulo curto para eixos e tabelas: R$ 850 · R$ 1,2 mil · R$ 3,4 mi · −R$ 1,2 mil. */
+fun formatarMoedaCompacta(centavos: Long): String {
+    val reais = kotlin.math.abs(centavos) / 100.0
+    val nf = NumberFormat.getNumberInstance(LOCALE_BR).apply { maximumFractionDigits = 1 }
+    val texto = when {
+        reais >= 1_000_000 -> "R$ ${nf.format(reais / 1_000_000)} mi"
+        reais >= 1_000 -> "R$ ${nf.format(reais / 1_000)} mil"
+        else -> "R$ ${nf.format(reais)}"
+    }
+    return if (centavos < 0) "−$texto" else texto
+}

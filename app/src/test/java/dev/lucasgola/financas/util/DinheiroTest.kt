@@ -37,6 +37,15 @@ class DinheiroTest {
     }
 
     @Test
+    fun `formato compacto para eixos`() {
+        assertEquals("R$ 850", formatarMoedaCompacta(85000))
+        assertEquals("R$ 1,2 mil", formatarMoedaCompacta(123456))
+        assertEquals("R$ 3,4 mi", formatarMoedaCompacta(340000000))
+        assertEquals("−R$ 1,5 mil", formatarMoedaCompacta(-150000))
+        assertEquals("R$ 0", formatarMoedaCompacta(0))
+    }
+
+    @Test
     fun `formatacao`() {
         assertEquals("1234,56", formatarDecimalEdicao(123456))
         assertEquals("0,432", formatarDecimalBr(BigDecimal("0.432")))

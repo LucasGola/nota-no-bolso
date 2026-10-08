@@ -61,13 +61,7 @@ fun AppNav() {
                     Aba.entries.forEach { aba ->
                         NavigationBarItem(
                             selected = rotaAtual == aba.rota,
-                            onClick = {
-                                nav.navigate(aba.rota) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { nav.irParaAba(aba.rota) },
                             icon = { Icon(painterResource(aba.icone), contentDescription = null) },
                             label = { Text(aba.titulo) },
                         )
@@ -94,7 +88,13 @@ fun AppNav() {
                     onVerPendentes = { nav.navigate(ROTA_PENDENTES) },
                 )
             }
-            composable(Aba.GRAFICOS.rota) { GraficosScreen() }
+            composable(Aba.GRAFICOS.rota) {
+                GraficosScreen(
+                    db = app.db,
+                    filtro = app.filtro,
+                    onVerNoExtrato = { nav.irParaAba(Aba.EXTRATO.rota) },
+                )
+            }
             composable(Aba.CATEGORIAS.rota) { CategoriasScreen(db = app.db) }
             composable(
                 ROTA_LANCAMENTO,
@@ -126,6 +126,13 @@ fun AppNav() {
             }
         }
     }
+}
+
+/** Navega entre abas preservando o estado de cada uma (padrão da barra inferior). */
+private fun NavHostController.irParaAba(rota: String) = navigate(rota) {
+    popUpTo(graph.findStartDestination().id) { saveState = true }
+    launchSingleTop = true
+    restoreState = true
 }
 
 /** Troca a tela atual por outra (o "voltar" não retorna para a tela substituída). */

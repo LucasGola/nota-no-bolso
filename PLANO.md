@@ -167,6 +167,12 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Todos respeitam o mesmo filtro do extrato.
 - [ ] Tocar num elemento do gráfico (ex.: categoria) abre o extrato já filtrado por ele.
 - [ ] Estado vazio claro quando o filtro não retorna dados.
+- Notas do M4:
+  - Gráficos desenhados em Compose puro, sem biblioteca. São três formas simples, e evita depender de uma API que muda muito entre versões (Vico).
+  - Cores das séries validadas para daltonismo: entradas em azul `#2A78D6` e saídas em laranja `#EB6834` (tema escuro: `#3987E5` / `#D95926`). Verde × vermelho foi reprovado (ΔE 4,2 para deuteranopia) e não é usado para distinguir séries.
+  - A evolução mensal usa as mesmas restrições do filtro, mas uma janela própria: período de um mês vira os 6 meses até ele; "todo o período" vira os últimos 12 meses; outros períodos usam os meses que cobrem, no máximo 24.
+  - Filtrando só entradas, o gráfico por categoria passa a mostrar entradas.
+  - Verificado visualmente no emulador com 70 lançamentos de exemplo: os três gráficos e o toque que abre o extrato filtrado.
 
 ### CA-07 — Exportação CSV
 - [ ] Exporta os lançamentos do filtro ativo.
