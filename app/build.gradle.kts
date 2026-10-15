@@ -8,6 +8,9 @@ plugins {
 // No CI, versionCode = número da execução, para que todo APK novo instale por cima do anterior.
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
 
+// Numa tag v1.2.0, o nome da versão é "1.2.0"; nos demais builds, "dev-<execução>".
+val tagVersao: String? = System.getenv("GITHUB_REF_NAME")?.takeIf { it.matches(Regex("""v\d+(\.\d+)*""")) }?.removePrefix("v")
+
 // Assinatura de release: só configurada quando as variáveis existem (CI com secrets).
 val keystorePath: String? = System.getenv("KEYSTORE_PATH")
 
@@ -20,7 +23,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = ciRunNumber ?: 1
-        versionName = "0.1.${ciRunNumber ?: 0}"
+        versionName = tagVersao ?: "dev-${ciRunNumber ?: 0}"
     }
 
     signingConfigs {
