@@ -208,7 +208,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - Arquivo de backup: JSON versionado (*Extrato → ⋮ → Backup e restauração*), com todas as tabelas e os ids preservados. A restauração mostra o conteúdo do arquivo e o que existe hoje, pede confirmação e substitui tudo numa única transação; se qualquer linha falhar, nada muda. Backups de uma versão mais nova do app são recusados. Depois de restaurar, o filtro volta ao padrão, porque os ids de categoria podem ter mudado.
 - Testes: a ida e volta do JSON reproduz os mesmos dados, inclusive nulos, escala de decimais (`10.10`) e o texto `"null"`. Arquivos inválidos, corrompidos ou de versão futura são rejeitados.
 - **Não verificado em aparelho:** o emulador não subiu nesta sessão (a máquina estava sem memória livre). Faltam: salvar → limpar dados → restaurar e conferir os totais; e o Auto Backup real (`adb shell bmgr backupnow dev.lucasgola.financas`, desinstalar e reinstalar).
-- Trocar o APK debug pelo release exige desinstalar (assinaturas diferentes), o que apaga os dados. Antes, é preciso salvar um backup em arquivo. Está no README.
+- Assinatura (2026-10-15): o release reaproveita a chave que assinou os APKs já instalados (a `debug.keystore` do computador de desenvolvimento, com a senha trocada). Ninguém precisa desinstalar. Conferido: o `app-release.apk` local tem o mesmo certificado (SHA-256 `AB:27:9C…6E:CB`) dos APKs distribuídos. A chave fica fora do repositório; os passos estão no README.
 
 ### CA-10 — CI/CD (GitHub Actions)
 - [ ] Todo push (qualquer branch) e PR executa: build `assembleDebug`, testes unitários e Android Lint.

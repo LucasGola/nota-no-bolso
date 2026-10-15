@@ -20,25 +20,24 @@ Requisitos: JDK 25 (definido em `gradle/gradle-daemon-jvm.properties`; o Gradle 
 - **Todo push / PR:** build debug + testes + lint. O APK fica em *Actions → execução → Artifacts* por 14 dias.
 - **Tag `v*`** (ex.: `git tag v0.1.0 && git push --tags`): gera APK release assinado e cria uma GitHub Release.
 
-### Configurar a assinatura do release (uma vez)
+### Assinatura
 
-```sh
-keytool -genkeypair -v -keystore release.jks -alias financas -keyalg RSA -keysize 2048 -validity 10000
-base64 -w0 release.jks > release.jks.b64
-```
+O app é assinado com uma única chave, guardada **fora do repositório**. Ela é a `debug.keystore` do computador onde os primeiros APKs foram gerados, com a senha trocada. Assim, os APKs já instalados aceitam as atualizações sem desinstalar.
 
-Em *Settings → Secrets and variables → Actions*, crie:
+No GitHub (*Settings → Secrets and variables → Actions*):
 
 | Secret | Valor |
 |---|---|
-| `KEYSTORE_BASE64` | conteúdo de `release.jks.b64` |
+| `KEYSTORE_BASE64` | keystore em base64 (`base64 -w0 financas-release.jks`) |
 | `KEYSTORE_PASSWORD` | senha do keystore |
-| `KEY_ALIAS` | `financas` |
-| `KEY_PASSWORD` | senha da chave |
+| `KEY_ALIAS` | `androiddebugkey` |
+| `KEY_PASSWORD` | mesma senha do keystore (PKCS12) |
 
-**Guarde o `release.jks` e as senhas fora do repositório.** Se perder o keystore, o Android não aceita atualizar o app instalado: será preciso desinstalar, e isso apaga os dados locais.
+Com os secrets configurados, tanto o APK de teste de cada push quanto o release de cada tag `v*` saem com essa chave. Sem eles (ex.: PR de fork), o build de teste usa uma chave descartável e o release falha de propósito.
 
-**Trocar o APK debug pelo release apaga os dados.** Os dois têm o mesmo `applicationId`, mas assinaturas diferentes, então o Android recusa instalar um por cima do outro. Antes de trocar: *Extrato → ⋮ → Backup e restauração → Salvar backup…*, desinstale, instale o release e restaure o arquivo.
+**Se perder a chave, o Android não aceita atualizar o app instalado**: será preciso desinstalar, e isso apaga os dados. Guarde o `.jks` e a senha em dois lugares.
+
+**Distribua só pelas Releases do GitHub.** O `versionCode` do CI é o número da execução, e o de um build local é sempre 1. Por isso, um APK gerado localmente não instala por cima de um release (o Android recusa versão menor).
 
 ## Backup
 

@@ -41,6 +41,13 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+        // No CI, o APK de teste usa a mesma chave do release: qualquer APK do GitHub atualiza o
+        // app instalado sem desinstalar. Localmente, sem as variáveis, vale a chave de debug padrão.
+        debug {
+            if (keystorePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     compileOptions {
