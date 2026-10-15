@@ -87,7 +87,7 @@ class CategoriasViewModel(private val dao: CategoriaDao) : ViewModel() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoriasScreen(db: AppDatabase) {
+fun CategoriasScreen(db: AppDatabase, topo: @Composable () -> Unit) {
     val vm: CategoriasViewModel = viewModel { CategoriasViewModel(db.categoriaDao()) }
     val categorias by vm.categorias.collectAsStateWithLifecycle()
     val mensagem by vm.mensagem.collectAsStateWithLifecycle()
@@ -102,7 +102,7 @@ fun CategoriasScreen(db: AppDatabase) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Categorias") }) },
+        topBar = topo,
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             FloatingActionButton(onClick = {

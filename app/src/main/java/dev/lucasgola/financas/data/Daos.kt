@@ -81,6 +81,27 @@ interface LancamentoDao {
 }
 
 @Dao
+interface MetodoPagamentoDao {
+    @Query("SELECT * FROM metodo_pagamento ORDER BY ativo DESC, nome COLLATE NOCASE")
+    fun observarTodos(): Flow<List<MetodoPagamento>>
+
+    @Query("SELECT * FROM metodo_pagamento")
+    suspend fun listarTodos(): List<MetodoPagamento>
+
+    @Insert
+    suspend fun inserir(metodo: MetodoPagamento): Long
+
+    @Update
+    suspend fun atualizar(metodo: MetodoPagamento)
+
+    @Delete
+    suspend fun excluir(metodo: MetodoPagamento)
+
+    @Query("SELECT COUNT(*) FROM lancamento WHERE metodoPagamentoId = :id")
+    suspend fun contarLancamentos(id: Long): Int
+}
+
+@Dao
 interface EstabelecimentoDao {
     @Query("SELECT * FROM estabelecimento ORDER BY razaoSocial COLLATE NOCASE")
     fun observarTodos(): Flow<List<Estabelecimento>>
@@ -157,12 +178,14 @@ interface NotaDao {
 @Dao
 interface BackupDao {
     @Query("SELECT * FROM categoria ORDER BY id") suspend fun categorias(): List<Categoria>
+    @Query("SELECT * FROM metodo_pagamento ORDER BY id") suspend fun metodos(): List<MetodoPagamento>
     @Query("SELECT * FROM estabelecimento ORDER BY id") suspend fun estabelecimentos(): List<Estabelecimento>
     @Query("SELECT * FROM lancamento ORDER BY id") suspend fun lancamentos(): List<Lancamento>
     @Query("SELECT * FROM nota_fiscal ORDER BY id") suspend fun notas(): List<NotaFiscal>
     @Query("SELECT * FROM item_nota ORDER BY id") suspend fun itens(): List<ItemNota>
 
     @Insert suspend fun inserirCategorias(v: List<Categoria>)
+    @Insert suspend fun inserirMetodos(v: List<MetodoPagamento>)
     @Insert suspend fun inserirEstabelecimentos(v: List<Estabelecimento>)
     @Insert suspend fun inserirLancamentos(v: List<Lancamento>)
     @Insert suspend fun inserirNotas(v: List<NotaFiscal>)
@@ -174,4 +197,5 @@ interface BackupDao {
     @Query("DELETE FROM lancamento") suspend fun limparLancamentos()
     @Query("DELETE FROM estabelecimento") suspend fun limparEstabelecimentos()
     @Query("DELETE FROM categoria") suspend fun limparCategorias()
+    @Query("DELETE FROM metodo_pagamento") suspend fun limparMetodos()
 }

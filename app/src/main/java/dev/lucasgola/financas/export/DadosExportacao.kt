@@ -5,6 +5,7 @@ import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.ItemNota
 import dev.lucasgola.financas.data.LancamentoComCategoria
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.filtro.ItemRateio
@@ -29,6 +30,7 @@ data class DadosExportacao(
     val categorias: Map<Long, Categoria> = emptyMap(),
     /** Categorias do filtro (vazio = sem restrição). */
     val categoriasFiltro: Set<Long> = emptySet(),
+    val metodos: Map<Long, MetodoPagamento> = emptyMap(),
 ) {
     val rateio: Rateio
         get() = Rateio(lancamentos.flatMap { e -> e.itens.map { it.paraRateio(e.dados.lancamento.id) } })
@@ -42,6 +44,7 @@ suspend fun carregarDadosExportacao(db: AppDatabase, filtro: Filtro, hoje: Local
 
     val estabelecimentos = db.estabelecimentoDao().listarTodos().associateBy { it.id }
     val categorias = db.categoriaDao().listarTodas()
+    val metodos = db.metodoPagamentoDao().listarTodos()
 
     // Em lotes: o SQLite limita a quantidade de parâmetros por consulta.
     val notaDao = db.notaDao()
@@ -59,11 +62,12 @@ suspend fun carregarDadosExportacao(db: AppDatabase, filtro: Filtro, hoje: Local
     val semValor = DadosExportacao("", todos)
     val rateio = semValor.rateio
     return DadosExportacao(
-        descricaoFiltro = descreverFiltro(filtro, categorias, estabelecimentos.values.toList(), hoje),
+        descricaoFiltro = descreverFiltro(filtro, categorias, estabelecimentos.values.toList(), hoje, metodos),
         lancamentos = todos
             .map { it.copy(valorCentavos = rateio.valorNasCategorias(it.dados.lancamento, filtro.categorias)) }
             .filter { it.valorCentavos != 0L },
         categorias = categorias.associateBy { it.id },
         categoriasFiltro = filtro.categorias,
+        metodos = metodos.associateBy { it.id },
     )
 }

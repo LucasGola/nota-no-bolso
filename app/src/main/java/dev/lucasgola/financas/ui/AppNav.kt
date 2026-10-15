@@ -25,7 +25,7 @@ import androidx.navigation.navArgument
 import dev.lucasgola.financas.FinancasApp
 import dev.lucasgola.financas.R
 import dev.lucasgola.financas.ui.backup.BackupScreen
-import dev.lucasgola.financas.ui.categorias.CategoriasScreen
+import dev.lucasgola.financas.ui.categorias.CadastrosScreen
 import dev.lucasgola.financas.ui.extrato.ExtratoScreen
 import dev.lucasgola.financas.ui.graficos.GraficosScreen
 import dev.lucasgola.financas.ui.importar.ImportarNotaScreen
@@ -36,7 +36,7 @@ import dev.lucasgola.financas.ui.lancamento.LancamentoFormScreen
 private enum class Aba(val rota: String, val titulo: String, @DrawableRes val icone: Int) {
     EXTRATO("extrato", "Extrato", R.drawable.ic_extrato),
     GRAFICOS("graficos", "Gráficos", R.drawable.ic_grafico),
-    CATEGORIAS("categorias", "Categorias", R.drawable.ic_categoria),
+    CADASTROS("categorias", "Cadastros", R.drawable.ic_categoria),
 }
 
 private const val ROTA_LANCAMENTO = "lancamento?id={id}"
@@ -99,7 +99,7 @@ fun AppNav() {
                     onVerNoExtrato = { nav.irParaAba(Aba.EXTRATO.rota) },
                 )
             }
-            composable(Aba.CATEGORIAS.rota) { CategoriasScreen(db = app.db) }
+            composable(Aba.CADASTROS.rota) { CadastrosScreen(db = app.db) }
             composable(
                 ROTA_LANCAMENTO,
                 arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L }),
@@ -114,6 +114,7 @@ fun AppNav() {
                 ImportarNotaScreen(
                     repo = app.importacao,
                     categoriaDao = app.db.categoriaDao(),
+                    metodoPagamentoDao = app.db.metodoPagamentoDao(),
                     conteudoQr = back.arguments?.getString("qr").orEmpty(),
                     onFechar = { nav.popBackStack() },
                     onAbrirLancamento = { id -> nav.substituirPor(rotaLancamento(id)) },

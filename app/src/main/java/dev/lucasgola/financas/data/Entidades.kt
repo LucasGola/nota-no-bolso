@@ -35,6 +35,19 @@ data class Categoria(
     val ativa: Boolean = true,
 )
 
+/**
+ * De onde o dinheiro saiu, cadastrado pelo usuário (ex.: "VR", "Nubank crédito"). Complementa a
+ * forma de pagamento da nota, que a SEFAZ registra como "Débito" mesmo quando foi o VR.
+ * Só nome e descrição: nenhum dado de cartão ou conta.
+ */
+@Entity(tableName = "metodo_pagamento")
+data class MetodoPagamento(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val nome: String,
+    val descricao: String? = null,
+    val ativo: Boolean = true,
+)
+
 @Entity(
     tableName = "estabelecimento",
     indices = [Index(value = ["cnpj"], unique = true), Index("categoriaPadraoId")],
@@ -54,7 +67,7 @@ data class Estabelecimento(
 
 @Entity(
     tableName = "lancamento",
-    indices = [Index("dataHora"), Index("categoriaId"), Index("estabelecimentoId")],
+    indices = [Index("dataHora"), Index("categoriaId"), Index("estabelecimentoId"), Index("metodoPagamentoId")],
     foreignKeys = [
         ForeignKey(
             entity = Categoria::class, parentColumns = ["id"], childColumns = ["categoriaId"],
@@ -62,6 +75,10 @@ data class Estabelecimento(
         ),
         ForeignKey(
             entity = Estabelecimento::class, parentColumns = ["id"], childColumns = ["estabelecimentoId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+        ForeignKey(
+            entity = MetodoPagamento::class, parentColumns = ["id"], childColumns = ["metodoPagamentoId"],
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
@@ -80,6 +97,8 @@ data class Lancamento(
     val observacao: String? = null,
     val criadoEm: Instant = Instant.now(),
     val atualizadoEm: Instant = Instant.now(),
+    /** Método cadastrado pelo usuário; [formaPagamento] continua sendo o texto que veio da nota. */
+    val metodoPagamentoId: Long? = null,
 )
 
 /**

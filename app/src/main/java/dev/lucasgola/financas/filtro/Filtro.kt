@@ -63,6 +63,7 @@ data class Filtro(
     val tipo: TipoLancamento? = null,
     val categorias: Set<Long> = emptySet(),
     val estabelecimentos: Set<Long> = emptySet(),
+    val metodosPagamento: Set<Long> = emptySet(),
     val origem: OrigemLancamento? = null,
     val valorMinCentavos: Long? = null,
     val valorMaxCentavos: Long? = null,
@@ -70,7 +71,8 @@ data class Filtro(
 ) {
     /** Algo além do período padrão está restringindo o resultado. */
     val temRestricoes: Boolean
-        get() = tipo != null || categorias.isNotEmpty() || estabelecimentos.isNotEmpty() || origem != null ||
+        get() = tipo != null || categorias.isNotEmpty() || estabelecimentos.isNotEmpty() || metodosPagamento.isNotEmpty() ||
+            origem != null ||
             valorMinCentavos != null || valorMaxCentavos != null || busca.isNotBlank()
 
     /** Mantém o período e remove o resto. */

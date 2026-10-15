@@ -73,7 +73,7 @@ class FiltroTest {
             st.executeUpdate("CREATE TABLE categoria (id INTEGER PRIMARY KEY, nome TEXT, cor INTEGER)")
             st.executeUpdate(
                 """CREATE TABLE lancamento (id INTEGER PRIMARY KEY, tipo TEXT, valorCentavos INTEGER, dataHora INTEGER,
-                   descricao TEXT, categoriaId INTEGER, origem TEXT, estabelecimentoId INTEGER)"""
+                   descricao TEXT, categoriaId INTEGER, origem TEXT, estabelecimentoId INTEGER, metodoPagamentoId INTEGER)"""
             )
             st.executeUpdate("CREATE TABLE nota_fiscal (id INTEGER PRIMARY KEY, lancamentoId INTEGER)")
             st.executeUpdate("CREATE TABLE item_nota (id INTEGER PRIMARY KEY, notaId INTEGER, descricao TEXT, categoriaId INTEGER)")
@@ -86,6 +86,7 @@ class FiltroTest {
         lancar(4, "SAIDA", 1200, "2026-10-31T23:59", "Desconto 50% padaria", 1, "MANUAL", null)
         conn.createStatement().use { st ->
             st.executeUpdate("INSERT INTO nota_fiscal VALUES (100, 1)")
+            st.executeUpdate("UPDATE lancamento SET metodoPagamentoId = 7 WHERE id IN (1, 3)")
             st.executeUpdate(
                 "INSERT INTO item_nota VALUES (1, 100, 'Crunch Chicken', NULL), (2, 100, 'Coca Zero Lata', NULL), " +
                     "(3, 100, 'PÃO DE QUEIJO', 4)"
@@ -98,7 +99,10 @@ class FiltroTest {
 
     private fun lancar(id: Long, tipo: String, valor: Long, dataLocal: String, desc: String, cat: Long, origem: String, est: Long?) {
         val instante = java.time.LocalDateTime.parse(dataLocal).atZone(dev.lucasgola.financas.util.ZONA).toInstant()
-        conn.prepareStatement("INSERT INTO lancamento VALUES (?, ?, ?, ?, ?, ?, ?, ?)").use { ps ->
+        conn.prepareStatement(
+            "INSERT INTO lancamento (id, tipo, valorCentavos, dataHora, descricao, categoriaId, origem, estabelecimentoId) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        ).use { ps ->
             ps.setLong(1, id); ps.setString(2, tipo); ps.setLong(3, valor); ps.setLong(4, instante.toEpochMilli())
             ps.setString(5, desc); ps.setLong(6, cat); ps.setString(7, origem)
             if (est == null) ps.setNull(8, java.sql.Types.INTEGER) else ps.setLong(8, est)
@@ -152,6 +156,13 @@ class FiltroTest {
     fun `remove acentos do termo`() {
         assertEquals("pao acai cafe coracao", ConsultaLancamentos.semAcento("pão açaí café coração"))
         assertEquals("PAO", ConsultaLancamentos.semAcento("PÃO"))
+    }
+
+    @Test
+    fun `filtra por metodo de pagamento`() {
+        assertEquals(listOf(1L), ids(outubro.copy(metodosPagamento = setOf(7))))
+        assertEquals(listOf(1L, 3L), ids(Filtro(periodo = Periodo.Tudo, metodosPagamento = setOf(7, 8))))
+        assertTrue(outubro.copy(metodosPagamento = setOf(7)).temRestricoes)
     }
 
     @Test

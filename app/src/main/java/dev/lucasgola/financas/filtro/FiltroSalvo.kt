@@ -21,6 +21,7 @@ object FiltroSalvo {
         f.tipo?.let { put("tipo", it.name) }
         put("categorias", JSONArray(f.categorias.toList()))
         put("estabelecimentos", JSONArray(f.estabelecimentos.toList()))
+        put("metodosPagamento", JSONArray(f.metodosPagamento.toList()))
         f.origem?.let { put("origem", it.name) }
         f.valorMinCentavos?.let { put("valorMin", it) }
         f.valorMaxCentavos?.let { put("valorMax", it) }
@@ -37,6 +38,7 @@ object FiltroSalvo {
                 tipo = o.optString("tipo").takeIf { it.isNotEmpty() }?.let(TipoLancamento::valueOf),
                 categorias = o.getJSONArray("categorias").longs(),
                 estabelecimentos = o.getJSONArray("estabelecimentos").longs(),
+                metodosPagamento = o.optJSONArray("metodosPagamento")?.longs().orEmpty(),
                 origem = o.optString("origem").takeIf { it.isNotEmpty() }?.let(OrigemLancamento::valueOf),
                 valorMinCentavos = if (o.has("valorMin")) o.getLong("valorMin") else null,
                 valorMaxCentavos = if (o.has("valorMax")) o.getLong("valorMax") else null,

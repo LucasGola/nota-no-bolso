@@ -4,6 +4,7 @@ import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.ItemNota
 import dev.lucasgola.financas.data.Lancamento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.NotaFiscal
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.StatusNota
@@ -33,7 +34,10 @@ class BackupJsonTest {
                 10, TipoLancamento.SAIDA, 8490, t, "Almoço", 1, OrigemLancamento.NFCE, "Outros", 3, null,
                 criadoEm = t, atualizadoEm = t.plusSeconds(60),
             ),
-            Lancamento(11, TipoLancamento.ENTRADA, 650000, t, "Salário", 7, criadoEm = t, atualizadoEm = t, observacao = "null"),
+            Lancamento(
+                11, TipoLancamento.ENTRADA, 650000, t, "Salário", 7, criadoEm = t, atualizadoEm = t, observacao = "null",
+                metodoPagamentoId = 2,
+            ),
         ),
         notas = listOf(
             NotaFiscal(
@@ -47,6 +51,7 @@ class BackupJsonTest {
             ItemNota(30, 20, 1, "26158", "Crunch Chicken", BigDecimal("4"), "UN", BigDecimal("10.10"), 0, 4040),
             ItemNota(31, 20, 2, "9002", "Batata", BigDecimal("0.432"), "KG", BigDecimal("5.899"), 5, 250, categoriaId = 1),
         ),
+        metodos = listOf(MetodoPagamento(1, "VR", null), MetodoPagamento(2, "Nubank", "Conta corrente", ativo = false)),
     )
 
     @Test
@@ -58,6 +63,19 @@ class BackupJsonTest {
         assertEquals(null, lido.lancamentos[0].observacao)
         assertEquals("null", lido.lancamentos[1].observacao) // texto "null" não vira null
         assertEquals(backup.resumo(), lido.resumo())
+    }
+
+    @Test
+    fun `le backup da versao 1, de antes dos metodos de pagamento`() {
+        val v1 = JSONObject(BackupJson.gerar(backup)).put("versao", 1).apply {
+            remove("metodos")
+            val lancamentos = getJSONArray("lancamentos")
+            for (i in 0 until lancamentos.length()) lancamentos.getJSONObject(i).remove("metodoPagamentoId")
+        }
+        val lido = BackupJson.ler(v1.toString())
+        assertEquals(emptyList<MetodoPagamento>(), lido.metodos)
+        assertEquals(listOf<Long?>(null, null), lido.lancamentos.map { it.metodoPagamentoId })
+        assertEquals(backup.copy(metodos = emptyList(), lancamentos = backup.lancamentos.map { it.copy(metodoPagamentoId = null) }), lido)
     }
 
     @Test

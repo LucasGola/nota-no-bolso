@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import java.math.BigDecimal
 import java.time.Instant
@@ -20,8 +21,11 @@ class Conversores {
 }
 
 @Database(
-    entities = [Categoria::class, Estabelecimento::class, Lancamento::class, NotaFiscal::class, ItemNota::class],
-    version = 1,
+    entities = [
+        Categoria::class, Estabelecimento::class, Lancamento::class, NotaFiscal::class, ItemNota::class,
+        MetodoPagamento::class,
+    ],
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Conversores::class)
@@ -30,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lancamentoDao(): LancamentoDao
     abstract fun estabelecimentoDao(): EstabelecimentoDao
     abstract fun notaDao(): NotaDao
+    abstract fun metodoPagamentoDao(): MetodoPagamentoDao
     abstract fun backupDao(): BackupDao
 
     companion object {
@@ -38,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun criar(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NOME_ARQUIVO)
                 .addCallback(SementeCategorias)
+                .addMigrations(Migracoes.DE_1_PARA_2)
                 .build()
     }
 }
@@ -61,5 +67,25 @@ private object SementeCategorias : RoomDatabase.Callback() {
                 arrayOf<Any>(nome, cor, tipo.name),
             )
         }
+    }
+}
+
+/**
+ * Migrações escritas à mão, sem recriar tabelas: os dados existentes não são copiados nem tocados.
+ * O SQL fica exposto para o teste na JVM, que confere o banco migrado contra o schema exportado.
+ * Sem fallbackToDestructiveMigration: se uma migração falhar, o app para em vez de apagar dados.
+ */
+object Migracoes {
+    /** v2: métodos de pagamento cadastrados pelo usuário e o vínculo opcional no lançamento. */
+    val SQL_1_PARA_2 = listOf(
+        "CREATE TABLE IF NOT EXISTS `metodo_pagamento` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`nome` TEXT NOT NULL, `descricao` TEXT, `ativo` INTEGER NOT NULL)",
+        "ALTER TABLE `lancamento` ADD COLUMN `metodoPagamentoId` INTEGER " +
+            "REFERENCES `metodo_pagamento`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS `index_lancamento_metodoPagamentoId` ON `lancamento` (`metodoPagamentoId`)",
+    )
+
+    val DE_1_PARA_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) = SQL_1_PARA_2.forEach(db::execSQL)
     }
 }

@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Filtro
@@ -114,6 +115,8 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val estabelecimentos: StateFlow<List<Estabelecimento>> = db.estabelecimentoDao().observarTodos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val metodos: StateFlow<List<MetodoPagamento>> = db.metodoPagamentoDao().observarTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
@@ -159,6 +162,7 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
     val filtroAtual by vm.filtro.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
     val estabelecimentos by vm.estabelecimentos.collectAsStateWithLifecycle()
+    val metodos by vm.metodos.collectAsStateWithLifecycle()
     val cores = coresGrafico()
 
     // Toque num elemento = aplica o filtro correspondente e abre o extrato.
@@ -169,7 +173,7 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
 
     Scaffold(topBar = { TopAppBar(title = { Text("Gráficos") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            BarraFiltros(filtroAtual, categorias, estabelecimentos, vm::alterarFiltro, Modifier.padding(bottom = 4.dp))
+            BarraFiltros(filtroAtual, categorias, estabelecimentos, vm::alterarFiltro, Modifier.padding(bottom = 4.dp), metodos)
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),

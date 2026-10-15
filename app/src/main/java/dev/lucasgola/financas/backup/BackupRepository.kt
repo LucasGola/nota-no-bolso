@@ -41,6 +41,7 @@ class BackupRepository(private val context: Context, private val db: AppDatabase
             lancamentos = dao.lancamentos(),
             notas = dao.notas(),
             itens = dao.itens(),
+            metodos = dao.metodos(),
         )
     }
 
@@ -67,7 +68,9 @@ class BackupRepository(private val context: Context, private val db: AppDatabase
         dao.limparLancamentos()
         dao.limparEstabelecimentos()
         dao.limparCategorias()
+        dao.limparMetodos()
         dao.inserirCategorias(b.categorias)
+        dao.inserirMetodos(b.metodos)
         dao.inserirEstabelecimentos(b.estabelecimentos)
         dao.inserirLancamentos(b.lancamentos)
         dao.inserirNotas(b.notas)

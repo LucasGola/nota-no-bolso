@@ -66,6 +66,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         categoriaId: Long,
         descricao: String,
         dataHora: Instant,
+        metodoPagamentoId: Long? = null,
     ): Long = db.withTransaction {
         val existente = notaDao.buscarPorChave(nota.chave.valor)
         check(existente == null || existente.status == StatusNota.PENDENTE) { "Nota já importada" }
@@ -76,7 +77,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
             endereco = nota.emitente.endereco,
             categoriaId = categoriaId,
         )
-        val lancamentoId = lancamentoDao.inserir(nota.paraLancamento(categoriaId, descricao, dataHora, estabelecimentoId))
+        val lancamentoId = lancamentoDao.inserir(nota.paraLancamento(categoriaId, descricao, dataHora, estabelecimentoId, metodoPagamentoId))
         val notaId = if (existente == null) {
             notaDao.inserir(nota.paraNotaFiscal(urlQr, lancamentoId))
         } else {

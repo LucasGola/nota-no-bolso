@@ -4,6 +4,7 @@ import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.ItemNota
 import dev.lucasgola.financas.data.Lancamento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.NotaFiscal
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.StatusNota
@@ -23,6 +24,7 @@ data class Backup(
     val lancamentos: List<Lancamento>,
     val notas: List<NotaFiscal>,
     val itens: List<ItemNota>,
+    val metodos: List<MetodoPagamento> = emptyList(),
 )
 
 class BackupInvalidoException(mensagem: String, causa: Throwable? = null) : Exception(mensagem, causa)
@@ -34,7 +36,8 @@ class BackupInvalidoException(mensagem: String, causa: Throwable? = null) : Exce
 object BackupJson {
     const val MIME = "application/json"
     private const val FORMATO = "financas-backup"
-    const val VERSAO = 1
+    /** 2: métodos de pagamento. Backups da versão 1 continuam sendo lidos (sem métodos). */
+    const val VERSAO = 2
 
     fun gerar(b: Backup): String = JSONObject()
         .put("formato", FORMATO)
@@ -45,6 +48,7 @@ object BackupJson {
         .put("lancamentos", b.lancamentos.toJson(::lancamento))
         .put("notas", b.notas.toJson(::nota))
         .put("itens", b.itens.toJson(::item))
+        .put("metodos", b.metodos.toJson(::metodo))
         .toString(1)
 
     fun ler(texto: String): Backup {
@@ -65,6 +69,7 @@ object BackupJson {
                 lancamentos = raiz.getJSONArray("lancamentos").lista(::lancamento),
                 notas = raiz.getJSONArray("notas").lista(::nota),
                 itens = raiz.getJSONArray("itens").lista(::item),
+                metodos = if (versao >= 2) raiz.getJSONArray("metodos").lista(::metodo) else emptyList(),
             )
         } catch (e: JSONException) {
             throw BackupInvalidoException("Backup corrompido: ${e.message}", e)
@@ -88,6 +93,7 @@ object BackupJson {
         .put("origem", l.origem.name).put("formaPagamento", l.formaPagamento.orNull())
         .put("estabelecimentoId", l.estabelecimentoId.orNull()).put("observacao", l.observacao.orNull())
         .put("criadoEm", l.criadoEm.toEpochMilli()).put("atualizadoEm", l.atualizadoEm.toEpochMilli())
+        .put("metodoPagamentoId", l.metodoPagamentoId.orNull())
 
     private fun nota(n: NotaFiscal) = JSONObject()
         .put("id", n.id).put("chaveAcesso", n.chaveAcesso).put("urlQr", n.urlQr).put("uf", n.uf)
@@ -103,7 +109,14 @@ object BackupJson {
         .put("valorUnitario", i.valorUnitario.toPlainString()).put("descontoCentavos", i.descontoCentavos)
         .put("valorTotalCentavos", i.valorTotalCentavos).put("categoriaId", i.categoriaId.orNull())
 
+    private fun metodo(m: MetodoPagamento) = JSONObject()
+        .put("id", m.id).put("nome", m.nome).put("descricao", m.descricao.orNull()).put("ativo", m.ativo)
+
     // ---- JSON → entidade ----
+
+    private fun metodo(o: JSONObject) = MetodoPagamento(
+        id = o.getLong("id"), nome = o.getString("nome"), descricao = o.textoOuNull("descricao"), ativo = o.getBoolean("ativo"),
+    )
 
     private fun categoria(o: JSONObject) = Categoria(
         id = o.getLong("id"), nome = o.getString("nome"), cor = o.getLong("cor"),
@@ -121,6 +134,7 @@ object BackupJson {
         origem = OrigemLancamento.valueOf(o.getString("origem")), formaPagamento = o.textoOuNull("formaPagamento"),
         estabelecimentoId = o.longOuNull("estabelecimentoId"), observacao = o.textoOuNull("observacao"),
         criadoEm = o.instant("criadoEm"), atualizadoEm = o.instant("atualizadoEm"),
+        metodoPagamentoId = o.longOuNull("metodoPagamentoId"), // ausente em backups da versão 1
     )
 
     private fun nota(o: JSONObject) = NotaFiscal(

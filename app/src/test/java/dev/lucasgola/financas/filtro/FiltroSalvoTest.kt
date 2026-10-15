@@ -21,6 +21,7 @@ class FiltroSalvoTest {
             tipo = TipoLancamento.SAIDA,
             categorias = setOf(1, 7),
             estabelecimentos = setOf(3),
+            metodosPagamento = setOf(4),
             origem = OrigemLancamento.NFCE,
             valorMinCentavos = 1000,
             valorMaxCentavos = null,
@@ -30,6 +31,12 @@ class FiltroSalvoTest {
         listOf(Periodo.UltimosDias(30), Periodo.Ano(2025), Periodo.Tudo).forEach {
             assertEquals(Filtro(periodo = it), idaEVolta(Filtro(periodo = it)))
         }
+    }
+
+    @Test
+    fun `filtro salvo antes dos metodos de pagamento continua valido`() {
+        val antigo = """{"periodo":{"tipo":"tudo"},"categorias":[2],"estabelecimentos":[],"busca":""}"""
+        assertEquals(Filtro(periodo = Periodo.Tudo, categorias = setOf(2)), FiltroSalvo.decodificar(antigo, hoje))
     }
 
     @Test

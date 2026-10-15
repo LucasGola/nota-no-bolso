@@ -29,6 +29,7 @@ import dev.lucasgola.financas.util.formatar
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import dev.lucasgola.financas.data.MetodoPagamento
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,4 +102,36 @@ fun CampoValor(texto: String, onAlterar: (String) -> Unit, modifier: Modifier = 
         singleLine = true,
         modifier = modifier.fillMaxWidth(),
     )
+}
+
+/** Método de pagamento cadastrado (opcional). Sem nenhum cadastrado, explica onde cadastrar. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SeletorMetodoPagamento(
+    metodos: List<MetodoPagamento>,
+    selecionado: Long?,
+    onSelecionar: (Long?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var aberto by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = aberto, onExpandedChange = { aberto = it }, modifier = modifier) {
+        OutlinedTextField(
+            value = metodos.firstOrNull { it.id == selecionado }?.nome ?: "Nenhum",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Método de pagamento") },
+            supportingText = if (metodos.isEmpty()) ({ Text("Cadastre os seus (VR, VA, cartões) em Cadastros › Pagamento.") }) else null,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = aberto) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = aberto, onDismissRequest = { aberto = false }) {
+            DropdownMenuItem(text = { Text("Nenhum") }, onClick = { onSelecionar(null); aberto = false })
+            metodos.forEach { m ->
+                DropdownMenuItem(
+                    text = { Text(m.nome) },
+                    onClick = { onSelecionar(m.id); aberto = false },
+                )
+            }
+        }
+    }
 }

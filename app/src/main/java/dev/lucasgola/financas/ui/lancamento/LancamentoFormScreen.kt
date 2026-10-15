@@ -76,6 +76,9 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import dev.lucasgola.financas.data.MetodoPagamento
+import dev.lucasgola.financas.data.MetodoPagamentoDao
+import dev.lucasgola.financas.ui.comum.SeletorMetodoPagamento
 
 data class FormLancamento(
     val tipo: TipoLancamento = TipoLancamento.SAIDA,
@@ -86,6 +89,7 @@ data class FormLancamento(
     val formaPagamento: String = "",
     val observacao: String = "",
     val erro: String? = null,
+    val metodoPagamentoId: Long? = null,
 )
 
 /** Nota fiscal vinculada ao lançamento (só leitura no formulário). */
@@ -101,6 +105,7 @@ class LancamentoFormViewModel(
     private val notaDao: NotaDao,
     private val estabelecimentoDao: EstabelecimentoDao,
     categoriaDao: CategoriaDao,
+    metodoPagamentoDao: MetodoPagamentoDao,
     private val id: Long?,
 ) : ViewModel() {
 
@@ -112,6 +117,12 @@ class LancamentoFormViewModel(
 
     val categorias: StateFlow<List<Categoria>> = categoriaDao.observarTodas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val metodos: StateFlow<List<MetodoPagamento>> = metodoPagamentoDao.observarTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Lançamento de nota fiscal: a forma de pagamento é o texto da nota. */
+    val daNota: Boolean get() = original?.origem == OrigemLancamento.NFCE
 
     /** Lançamento original em edição; preserva campos que o formulário não mostra (hora, origem, estabelecimento). */
     private var original: Lancamento? = null
@@ -130,6 +141,7 @@ class LancamentoFormViewModel(
                     descricao = l.descricao,
                     formaPagamento = l.formaPagamento.orEmpty(),
                     observacao = l.observacao.orEmpty(),
+                    metodoPagamentoId = l.metodoPagamentoId,
                 )
             }
             notaDao.buscarPorLancamento(id)?.let { n ->
@@ -177,6 +189,7 @@ class LancamentoFormViewModel(
                 observacao = f.observacao.trim().ifEmpty { null },
                 origem = o?.origem ?: OrigemLancamento.MANUAL,
                 estabelecimentoId = o?.estabelecimentoId,
+                metodoPagamentoId = f.metodoPagamentoId,
                 criadoEm = o?.criadoEm ?: Instant.now(),
                 atualizadoEm = Instant.now(),
             )
@@ -209,10 +222,13 @@ class LancamentoFormViewModel(
 @Composable
 fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> Unit) {
     val vm: LancamentoFormViewModel = viewModel(key = "lancamento-$lancamentoId") {
-        LancamentoFormViewModel(db.lancamentoDao(), db.notaDao(), db.estabelecimentoDao(), db.categoriaDao(), lancamentoId)
+        LancamentoFormViewModel(
+            db.lancamentoDao(), db.notaDao(), db.estabelecimentoDao(), db.categoriaDao(), db.metodoPagamentoDao(), lancamentoId,
+        )
     }
     val form by vm.form.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
+    val metodos by vm.metodos.collectAsStateWithLifecycle()
     val nota by vm.nota.collectAsStateWithLifecycle()
 
     var confirmarExclusao by remember { mutableStateOf(false) }
@@ -268,10 +284,16 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            SeletorMetodoPagamento(
+                metodos = metodos.filter { it.ativo || it.id == form.metodoPagamentoId },
+                selecionado = form.metodoPagamentoId,
+                onSelecionar = { id -> vm.alterar { it.copy(metodoPagamentoId = id) } },
+            )
+            // O texto livre antigo só aparece em nota fiscal (o que a SEFAZ registrou) ou se já tiver valor.
+            if (vm.daNota || form.formaPagamento.isNotBlank()) OutlinedTextField(
                 value = form.formaPagamento,
                 onValueChange = { v -> vm.alterar { it.copy(formaPagamento = v) } },
-                label = { Text("Forma de pagamento") },
+                label = { Text(if (vm.daNota) "Forma de pagamento na nota" else "Forma de pagamento") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

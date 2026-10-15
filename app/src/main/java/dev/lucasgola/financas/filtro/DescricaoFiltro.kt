@@ -2,6 +2,7 @@ package dev.lucasgola.financas.filtro
 
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.util.formatarMoeda
@@ -13,6 +14,7 @@ fun descreverFiltro(
     categorias: List<Categoria>,
     estabelecimentos: List<Estabelecimento>,
     hoje: LocalDate,
+    metodos: List<MetodoPagamento> = emptyList(),
 ): String {
     val partes = mutableListOf<String>()
     val periodo = filtro.periodo
@@ -25,6 +27,9 @@ fun descreverFiltro(
     }
     if (filtro.estabelecimentos.isNotEmpty()) {
         partes += "Estabelecimentos: " + estabelecimentos.filter { it.id in filtro.estabelecimentos }.joinToString(", ") { it.razaoSocial }
+    }
+    if (filtro.metodosPagamento.isNotEmpty()) {
+        partes += "Pagamento: " + metodos.filter { it.id in filtro.metodosPagamento }.joinToString(", ") { it.nome }
     }
     if (filtro.valorMinCentavos != null) partes += "Valor ≥ ${formatarMoeda(filtro.valorMinCentavos)}"
     if (filtro.valorMaxCentavos != null) partes += "Valor ≤ ${formatarMoeda(filtro.valorMaxCentavos)}"

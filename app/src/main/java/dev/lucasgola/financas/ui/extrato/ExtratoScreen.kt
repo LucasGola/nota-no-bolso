@@ -54,6 +54,7 @@ import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Rateio
 import dev.lucasgola.financas.filtro.comValorNasCategorias
@@ -113,6 +114,8 @@ class ExtratoViewModel(db: AppDatabase, private val filtroGlobal: MutableStateFl
 
     val estabelecimentos: StateFlow<List<Estabelecimento>> = db.estabelecimentoDao().observarTodos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val metodos: StateFlow<List<MetodoPagamento>> = db.metodoPagamentoDao().observarTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
@@ -160,6 +163,7 @@ fun ExtratoScreen(
     val filtroAtual by vm.filtro.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
     val estabelecimentos by vm.estabelecimentos.collectAsStateWithLifecycle()
+    val metodos by vm.metodos.collectAsStateWithLifecycle()
     var menuAberto by remember { mutableStateOf(false) }
     var digitandoChave by remember { mutableStateOf(false) }
     var exportando by remember { mutableStateOf(false) }
@@ -210,6 +214,7 @@ fun ExtratoScreen(
                 categorias = categorias,
                 estabelecimentos = estabelecimentos,
                 onAlterar = vm::alterarFiltro,
+                metodos = metodos,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
             LazyColumn(Modifier.fillMaxWidth().weight(1f)) {

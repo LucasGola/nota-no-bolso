@@ -59,6 +59,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import dev.lucasgola.financas.data.MetodoPagamento
+import dev.lucasgola.financas.data.MetodoPagamentoDao
+import dev.lucasgola.financas.ui.comum.SeletorMetodoPagamento
 
 sealed interface EstadoImportacao {
     data object Consultando : EstadoImportacao
@@ -71,6 +74,7 @@ sealed interface EstadoImportacao {
         val categoriaId: Long?,
         val descricao: String,
         val data: LocalDate,
+        val metodoPagamentoId: Long? = null,
         val salvando: Boolean = false,
         val erro: String? = null,
     ) : EstadoImportacao
@@ -79,6 +83,7 @@ sealed interface EstadoImportacao {
 class ImportarNotaViewModel(
     private val repo: ImportacaoRepository,
     categoriaDao: CategoriaDao,
+    metodoPagamentoDao: MetodoPagamentoDao,
     conteudoQr: String,
 ) : ViewModel() {
 
@@ -86,6 +91,9 @@ class ImportarNotaViewModel(
     val estado: StateFlow<EstadoImportacao> = _estado.asStateFlow()
 
     val categorias: StateFlow<List<Categoria>> = categoriaDao.observarTodas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val metodos: StateFlow<List<MetodoPagamento>> = metodoPagamentoDao.observarTodos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
@@ -122,7 +130,7 @@ class ImportarNotaViewModel(
             val emissao = r.nota.dataEmissaoInstant
             val dataHora = if (emissao.dataLocal() == r.data) emissao else r.data.meioDia()
             try {
-                repo.confirmar(r.nota, r.urlQr, categoriaId, r.descricao.trim().ifEmpty { r.nota.emitente.razaoSocial }, dataHora)
+                repo.confirmar(r.nota, r.urlQr, categoriaId, r.descricao.trim().ifEmpty { r.nota.emitente.razaoSocial }, dataHora, r.metodoPagamentoId)
                 onSalvo()
             } catch (e: Exception) {
                 _estado.value = r.copy(salvando = false, erro = "Não foi possível salvar: ${e.message}")
@@ -136,16 +144,18 @@ class ImportarNotaViewModel(
 fun ImportarNotaScreen(
     repo: ImportacaoRepository,
     categoriaDao: CategoriaDao,
+    metodoPagamentoDao: MetodoPagamentoDao,
     conteudoQr: String,
     onFechar: () -> Unit,
     onAbrirLancamento: (Long) -> Unit,
     onVerPendentes: () -> Unit,
 ) {
     val vm: ImportarNotaViewModel = viewModel(key = "importar-$conteudoQr") {
-        ImportarNotaViewModel(repo, categoriaDao, conteudoQr)
+        ImportarNotaViewModel(repo, categoriaDao, metodoPagamentoDao, conteudoQr)
     }
     val estado by vm.estado.collectAsStateWithLifecycle()
     val categorias by vm.categorias.collectAsStateWithLifecycle()
+    val metodos by vm.metodos.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -184,6 +194,7 @@ fun ImportarNotaScreen(
                 is EstadoImportacao.Revisao -> Revisao(
                     r = e,
                     categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == e.categoriaId },
+                    metodos = metodos.filter { it.ativo },
                     onAlterar = vm::alterar,
                     onSalvar = { vm.salvar(onFechar) },
                 )
@@ -207,6 +218,7 @@ private val fmtEmissao = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 private fun Revisao(
     r: EstadoImportacao.Revisao,
     categorias: List<Categoria>,
+    metodos: List<MetodoPagamento>,
     onAlterar: ((EstadoImportacao.Revisao) -> EstadoImportacao.Revisao) -> Unit,
     onSalvar: () -> Unit,
 ) {
@@ -252,6 +264,7 @@ private fun Revisao(
             modifier = Modifier.fillMaxWidth(),
         )
         CampoData(r.data, { d -> onAlterar { it.copy(data = d) } })
+        SeletorMetodoPagamento(metodos, r.metodoPagamentoId, { id -> onAlterar { it.copy(metodoPagamentoId = id) } })
 
         r.erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = onSalvar, enabled = !r.salvando, modifier = Modifier.fillMaxWidth()) {

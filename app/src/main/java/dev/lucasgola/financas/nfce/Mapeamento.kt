@@ -22,6 +22,7 @@ fun NotaImportada.paraLancamento(
     descricao: String,
     dataHora: Instant,
     estabelecimentoId: Long,
+    metodoPagamentoId: Long? = null,
 ): Lancamento = Lancamento(
     tipo = TipoLancamento.SAIDA,
     valorCentavos = valorAPagarCentavos,
@@ -31,6 +32,7 @@ fun NotaImportada.paraLancamento(
     origem = OrigemLancamento.NFCE,
     formaPagamento = resumoPagamento(),
     estabelecimentoId = estabelecimentoId,
+    metodoPagamentoId = metodoPagamentoId,
 )
 
 fun NotaImportada.paraNotaFiscal(urlQr: String, lancamentoId: Long, id: Long = 0): NotaFiscal = NotaFiscal(

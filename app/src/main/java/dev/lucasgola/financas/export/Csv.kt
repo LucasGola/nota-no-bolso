@@ -1,5 +1,6 @@
 package dev.lucasgola.financas.export
 
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.util.ZONA
@@ -25,7 +26,7 @@ object Csv {
 
     private val colunas = listOf(
         "Data", "Hora", "Tipo", "Descrição", "Categoria", "Estabelecimento", "CNPJ",
-        "Forma de pagamento", "Origem", "Valor", "Observação",
+        "Forma de pagamento", "Método de pagamento", "Origem", "Valor", "Observação",
     )
     private val colunasItem = listOf("Item", "Código", "Quantidade", "Unidade", "Valor unitário", "Valor do item", "Categoria do item")
 
@@ -33,7 +34,7 @@ object Csv {
         append(BOM)
         linha(if (incluirItens) colunas + colunasItem else colunas)
         for (l in dados.lancamentos) {
-            val base = camposLancamento(l)
+            val base = camposLancamento(l, dados.metodos)
             if (!incluirItens) {
                 linha(base)
             } else if (l.itens.isEmpty()) {
@@ -53,7 +54,7 @@ object Csv {
         }
     }
 
-    private fun camposLancamento(e: LancamentoExportado): List<String> {
+    private fun camposLancamento(e: LancamentoExportado, metodos: Map<Long, MetodoPagamento>): List<String> {
         val l = e.dados.lancamento
         val quando = l.dataHora.atZone(ZONA)
         val sinal = if (l.tipo == TipoLancamento.SAIDA) -1 else 1
@@ -66,6 +67,7 @@ object Csv {
             texto(e.estabelecimento?.razaoSocial.orEmpty()),
             e.estabelecimento?.cnpj?.let(::formatarCnpj).orEmpty(),
             texto(l.formaPagamento.orEmpty()),
+            texto(l.metodoPagamentoId?.let { metodos[it]?.nome }.orEmpty()),
             if (l.origem == OrigemLancamento.NFCE) "Nota fiscal" else "Manual",
             centavos(sinal * e.valorCentavos),
             texto(l.observacao.orEmpty()),

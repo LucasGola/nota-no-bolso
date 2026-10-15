@@ -45,6 +45,10 @@ object ConsultaLancamentos {
             condicoes += "l.estabelecimentoId IN (${filtro.estabelecimentos.joinToString { "?" }})"
             args.addAll(filtro.estabelecimentos)
         }
+        if (filtro.metodosPagamento.isNotEmpty()) {
+            condicoes += "l.metodoPagamentoId IN (${filtro.metodosPagamento.joinToString { "?" }})"
+            args.addAll(filtro.metodosPagamento)
+        }
         filtro.origem?.let {
             condicoes += "l.origem = ?"
             args += it.name

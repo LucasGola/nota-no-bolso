@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import dev.lucasgola.financas.R
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.filtro.Filtro
@@ -76,6 +77,7 @@ fun BarraFiltros(
     estabelecimentos: List<Estabelecimento>,
     onAlterar: ((Filtro) -> Filtro) -> Unit,
     modifier: Modifier = Modifier,
+    metodos: List<MetodoPagamento> = emptyList(),
 ) {
     val hoje = LocalDate.now(ZONA)
     var editando by remember { mutableStateOf(false) }
@@ -109,6 +111,11 @@ fun BarraFiltros(
                     ChipRemovivel(e.razaoSocial) { onAlterar { it.copy(estabelecimentos = it.estabelecimentos - e.id) } }
                 }
             }
+            metodos.filter { it.id in filtro.metodosPagamento }.forEach { m ->
+                item(key = "met-${m.id}") {
+                    ChipRemovivel(m.nome) { onAlterar { it.copy(metodosPagamento = it.metodosPagamento - m.id) } }
+                }
+            }
             if (filtro.valorMinCentavos != null || filtro.valorMaxCentavos != null) item {
                 ChipRemovivel(rotuloValor(filtro)) { onAlterar { it.copy(valorMinCentavos = null, valorMaxCentavos = null) } }
             }
@@ -122,7 +129,7 @@ fun BarraFiltros(
     }
 
     if (editando) {
-        PainelFiltros(filtro, categorias, estabelecimentos, onAlterar, onFechar = { editando = false })
+        PainelFiltros(filtro, categorias, estabelecimentos, metodos, onAlterar, onFechar = { editando = false })
     }
 }
 
@@ -212,6 +219,7 @@ private fun PainelFiltros(
     filtro: Filtro,
     categorias: List<Categoria>,
     estabelecimentos: List<Estabelecimento>,
+    metodos: List<MetodoPagamento>,
     onAlterar: ((Filtro) -> Filtro) -> Unit,
     onFechar: () -> Unit,
 ) {
@@ -256,6 +264,21 @@ private fun PainelFiltros(
                             selected = sel,
                             onClick = { onAlterar { it.copy(categorias = if (sel) it.categorias - c.id else it.categorias + c.id) } },
                             label = { Text(c.nome) },
+                        )
+                    }
+                }
+            }
+
+            if (metodos.isNotEmpty()) Secao("Método de pagamento") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    metodos.forEach { m ->
+                        val sel = m.id in filtro.metodosPagamento
+                        FilterChip(
+                            selected = sel,
+                            onClick = {
+                                onAlterar { it.copy(metodosPagamento = if (sel) it.metodosPagamento - m.id else it.metodosPagamento + m.id) }
+                            },
+                            label = { Text(m.nome) },
                         )
                     }
                 }

@@ -5,6 +5,7 @@ import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.ItemNota
 import dev.lucasgola.financas.data.Lancamento
 import dev.lucasgola.financas.data.LancamentoComCategoria
+import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.OrigemLancamento
 import dev.lucasgola.financas.data.TipoCategoria
 import dev.lucasgola.financas.data.TipoLancamento
@@ -64,10 +65,10 @@ class ExportacaoTest {
         assertEquals(3, linhas.size)
         assertEquals(
             "02/10/2026;12:08;Saída;\"Almoço; com \"\"amigos\"\"\";Alimentação fora;Horizonte Restaurantes S.A.;" +
-                "58.891.504/0017-96;Outros;Nota fiscal;-84,90;",
+                "58.891.504/0017-96;Outros;;Nota fiscal;-84,90;",
             linhas[1],
         )
-        assertEquals("05/10/2026;12:00;Entrada;Salário;Mercado;;;;Manual;6500,00;", linhas[2])
+        assertEquals("05/10/2026;12:00;Entrada;Salário;Mercado;;;;;Manual;6500,00;", linhas[2])
     }
 
     @Test
@@ -105,6 +106,21 @@ class ExportacaoTest {
         val categorias = RelatorioLayout.montar(comItemClassificado, false, 515f, medidor)
             .filterIsInstance<LinhaRelatorio.Categoria>().associate { it.nome to it.valor }
         assertEquals(mapOf("Alimentação fora" to 7986L, "Lazer" to 504L), categorias)
+    }
+
+    @Test
+    fun `csv traz o metodo de pagamento cadastrado ao lado da forma da nota`() {
+        val vr = MetodoPagamento(1, "VR", "Vale-refeição")
+        val comMetodo = dados.copy(
+            lancamentos = dados.lancamentos.map { e ->
+                if (e.dados.lancamento.id != 1L) e
+                else e.copy(dados = e.dados.copy(lancamento = e.dados.lancamento.copy(metodoPagamentoId = 1)))
+            },
+            metodos = mapOf(1L to vr),
+        )
+        val linhas = Csv.gerar(comMetodo, incluirItens = false).removePrefix("\uFEFF").split("\r\n")
+        assertTrue(linhas[0].contains(";Forma de pagamento;Método de pagamento;Origem;"))
+        assertTrue(linhas[1].contains(";Outros;VR;Nota fiscal;-84,90;"))
     }
 
     // ---- Descrição do filtro e nome do arquivo ----
