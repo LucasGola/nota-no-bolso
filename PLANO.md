@@ -193,6 +193,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - Ao importar uma nota, o método de pagamento vem preenchido com o último usado naquele CNPJ, como já acontece com a categoria. Escolher "Nenhum" também é lembrado. Corrigir o método de um lançamento de nota (ex.: era VR, não débito) atualiza a sugestão para as próximas notas dessa loja.
 - Gráficos: o painel "Gastos por método de pagamento" (ou entradas, se o filtro for só de entradas) segue o mesmo filtro dos outros painéis. "Sem método" fica sempre por último, em cinza, e não é tocável. Tocar num método abre o extrato filtrado por ele. O painel só aparece se houver método cadastrado.
 - Schema v3: coluna `estabelecimento.metodoPagamentoPadraoId`, migração manual 2→3. `MigracaoTest` cobre 2→3 e a cadeia 1→3, o caminho de quem pular a v1.2. O backup passou à versão 3 e continua lendo as versões 1 e 2.
+- **Verificado em aparelho (2026-10-15):** a atualização da v1.2.0 para a v1.3.0 no celular do autor preservou os dados. A sugestão de método por loja e o painel por método, com drill-down, funcionaram.
 
 ### CA-07 — Exportação CSV
 - [ ] Exporta os lançamentos do filtro ativo.
