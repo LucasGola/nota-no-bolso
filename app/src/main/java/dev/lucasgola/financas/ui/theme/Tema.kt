@@ -11,10 +11,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-/** Cores semânticas fixas (não variam com o tema dinâmico): verde = entrada, vermelho = saída. */
+/**
+ * Cores de texto para valores: azul = entrada, laranja = saída (o sinal + / − acompanha sempre).
+ * Mesmo par dos gráficos, que passa no teste de daltonismo (verde × vermelho não passa), em tons
+ * com contraste de texto ≥ 4,5:1 sobre o fundo e os cards, no tema claro e no escuro.
+ */
 object CoresValor {
-    val entrada = Color(0xFF2E7D32)
-    val saida = Color(0xFFC62828)
+    val entrada: Color
+        @Composable get() = if (isSystemInDarkTheme()) Color(0xFF6AA6EE) else Color(0xFF1D5FB4)
+    val saida: Color
+        @Composable get() = if (isSystemInDarkTheme()) Color(0xFFEE8550) else Color(0xFFA8410F)
 }
 
 private val claro = lightColorScheme(primary = Color(0xFF1B5E20), secondary = Color(0xFF4E6352))

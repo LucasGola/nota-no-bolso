@@ -76,8 +76,8 @@ class FiltroTest {
                    descricao TEXT, categoriaId INTEGER, origem TEXT, estabelecimentoId INTEGER)"""
             )
             st.executeUpdate("CREATE TABLE nota_fiscal (id INTEGER PRIMARY KEY, lancamentoId INTEGER)")
-            st.executeUpdate("CREATE TABLE item_nota (id INTEGER PRIMARY KEY, notaId INTEGER, descricao TEXT)")
-            st.executeUpdate("INSERT INTO categoria VALUES (1, 'Mercado', 0), (2, 'Salário', 0), (3, 'Lazer', 0)")
+            st.executeUpdate("CREATE TABLE item_nota (id INTEGER PRIMARY KEY, notaId INTEGER, descricao TEXT, categoriaId INTEGER)")
+            st.executeUpdate("INSERT INTO categoria VALUES (1, 'Mercado', 0), (2, 'Salário', 0), (3, 'Lazer', 0), (4, 'Padaria', 0)")
         }
         // id, tipo, valor, data (local SP), descrição, categoria, origem, estabelecimento
         lancar(1, "SAIDA", 8490, "2026-10-02T12:08", "Horizonte Restaurantes", 3, "NFCE", 10)
@@ -86,7 +86,10 @@ class FiltroTest {
         lancar(4, "SAIDA", 1200, "2026-10-31T23:59", "Desconto 50% padaria", 1, "MANUAL", null)
         conn.createStatement().use { st ->
             st.executeUpdate("INSERT INTO nota_fiscal VALUES (100, 1)")
-            st.executeUpdate("INSERT INTO item_nota VALUES (1, 100, 'Crunch Chicken'), (2, 100, 'Coca Zero Lata')")
+            st.executeUpdate(
+                "INSERT INTO item_nota VALUES (1, 100, 'Crunch Chicken', NULL), (2, 100, 'Coca Zero Lata', NULL), " +
+                    "(3, 100, 'PÃO DE QUEIJO', 4)"
+            )
         }
     }
 
@@ -127,6 +130,28 @@ class FiltroTest {
         assertEquals(listOf(4L, 1L), ids(outubro.copy(categorias = setOf(1, 3))))
         assertEquals(listOf(1L), ids(outubro.copy(origem = OrigemLancamento.NFCE)))
         assertEquals(listOf(1L), ids(outubro.copy(estabelecimentos = setOf(10))))
+    }
+
+    @Test
+    fun `categoria tambem encontra a nota por um item classificado nela`() {
+        // A nota 1 é de Lazer, mas tem um item classificado em Padaria.
+        assertEquals(listOf(1L), ids(outubro.copy(categorias = setOf(4))))
+        assertEquals(listOf(4L, 1L), ids(outubro.copy(categorias = setOf(1, 4))))
+    }
+
+    @Test
+    fun `busca ignora acentos dos dois lados`() {
+        assertEquals(listOf(1L), ids(outubro.copy(busca = "pao de queijo")))
+        assertEquals(listOf(1L), ids(outubro.copy(busca = "PÃO")))
+        assertEquals(listOf(1L), ids(outubro.copy(busca = "pão")))
+        assertEquals(listOf(2L), ids(outubro.copy(busca = "salario")))
+        assertEquals(listOf(2L), ids(outubro.copy(busca = "SALÁRIO")))
+    }
+
+    @Test
+    fun `remove acentos do termo`() {
+        assertEquals("pao acai cafe coracao", ConsultaLancamentos.semAcento("pão açaí café coração"))
+        assertEquals("PAO", ConsultaLancamentos.semAcento("PÃO"))
     }
 
     @Test

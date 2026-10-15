@@ -1,5 +1,6 @@
 package dev.lucasgola.financas.ui.comum
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,15 +28,27 @@ data class LinhaItem(
     val unidade: String,
     val valorUnitario: BigDecimal,
     val valorTotalCentavos: Long,
+    val id: Long = 0,
+    /** Categoria própria do item; null = a mesma do lançamento. */
+    val categoriaId: Long? = null,
 )
 
-/** Lista de itens no formato do cupom: descrição, depois "2 UN × R$ 9,35" e o total à direita. */
+/**
+ * Lista de itens no formato do cupom: descrição, depois "2 UN × R$ 9,35" e o total à direita.
+ * Com [onClicar], cada item é tocável (para classificar) e mostra a categoria própria, se tiver.
+ */
 @Composable
-fun ListaItensNota(itens: List<LinhaItem>, modifier: Modifier = Modifier) {
+fun ListaItensNota(
+    itens: List<LinhaItem>,
+    modifier: Modifier = Modifier,
+    nomeCategoria: (Long) -> String? = { null },
+    onClicar: ((LinhaItem) -> Unit)? = null,
+) {
     Column(modifier) {
         itens.forEachIndexed { i, item ->
             if (i > 0) HorizontalDivider()
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            val clicavel = if (onClicar != null) Modifier.clickable { onClicar(item) } else Modifier
+            Row(Modifier.fillMaxWidth().then(clicavel).padding(vertical = 8.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text(item.descricao, style = MaterialTheme.typography.bodyMedium)
                     Text(
@@ -44,6 +57,13 @@ fun ListaItensNota(itens: List<LinhaItem>, modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    item.categoriaId?.let(nomeCategoria)?.let { nome ->
+                        Text(
+                            "Categoria: $nome",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(formatarMoeda(item.valorTotalCentavos), style = MaterialTheme.typography.bodyMedium)

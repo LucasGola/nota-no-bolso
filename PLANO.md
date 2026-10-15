@@ -127,7 +127,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 
 ### CA-02 — Importação dos dados da NFC-e (SP)
 - [ ] Com internet, extrai: emitente (razão social, CNPJ, endereço), data/hora de emissão, itens (descrição, qtd, unidade, valor unitário, valor total), descontos, valor total e forma de pagamento.
-- [ ] Soma dos itens − descontos confere com o total da nota; se não conferir, a nota é salva com alerta visível.
+- [ ] Soma dos itens − descontos confere com o total da nota; se não conferir, a nota é salva com alerta visível (na revisão e, depois de salva, no detalhe da nota).
 - [ ] Antes de salvar, exibe tela de revisão onde posso ajustar categoria, data e descrição.
 - [ ] A categoria é pré-preenchida com a última usada para aquele CNPJ.
 - [ ] Sem internet ou com falha de parse: nota salva como **PENDENTE** com dados da chave (CNPJ, mês, número). Há ação "Tentar novamente" individual e "Reprocessar pendentes".
@@ -157,8 +157,8 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - [ ] Rolagem fluida com 5.000 lançamentos. **Não medido ainda**: a filtragem é feita em SQL e a lista é preguiçosa, mas falta testar com volume real.
 - Notas do M3:
   - O período padrão é o mês atual, com setas para navegar entre meses. O filtro é único no app e vale também para gráficos e exportação.
-  - A busca não diferencia maiúsculas de minúsculas, mas **diferencia acentos** ("pao" não encontra "PÃO"), porque é uma limitação do `LIKE` do SQLite. Se incomodar no uso real, a solução é gravar uma coluna normalizada (sem acentos) para busca.
-  - O filtro não sobrevive ao fechamento do app: ao reabrir, volta para o mês atual sem restrições.
+  - A busca ignora maiúsculas e acentos ("pao" encontra "PÃO"). O `LIKE` do SQLite não faz isso sozinho, então a consulta normaliza as colunas com `REPLACE`. Não precisa de coluna nova nem de migração do banco.
+  - O filtro é salvo entre aberturas do app. O período "mês" volta para o mês atual; os outros períodos e as restrições são mantidos.
 
 ### CA-06 — Gráficos
 - [ ] **Gastos por categoria** (barras horizontais ordenadas, com valor e %) no período.
@@ -173,6 +173,13 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
   - A evolução mensal usa as mesmas restrições do filtro, mas uma janela própria: período de um mês vira os 6 meses até ele; "todo o período" vira os últimos 12 meses; outros períodos usam os meses que cobrem, no máximo 24.
   - Filtrando só entradas, o gráfico por categoria passa a mostrar entradas.
   - Verificado visualmente no emulador com 70 lançamentos de exemplo: os três gráficos e o toque que abre o extrato filtrado.
+
+### Categoria por item (v1.1, opcional)
+- Na nota de um lançamento, tocar num item permite colocá-lo em outra categoria (ex.: a carne da compra do mercado). Item sem categoria fica na do lançamento; classificar é opcional.
+- O valor da nota é repartido proporcionalmente: cada item classificado leva item ÷ soma dos itens × valor pago. Assim o desconto da nota é dividido entre os itens e as partes sempre somam o valor pago. O arredondamento fica com a categoria do lançamento.
+- O gráfico "por categoria" mostra as partes. Com filtro de categoria, a nota aparece se tiver item naquela categoria, e o extrato, os gráficos e o PDF contam só a parte dessa categoria. A linha do extrato mostra "R$ 40,00 de R$ 300,00".
+- O CSV com itens ganhou a coluna "Categoria do item".
+- Sem mudança no banco: a coluna `item_nota.categoriaId` existia desde o schema v1.
 
 ### CA-07 — Exportação CSV
 - [ ] Exporta os lançamentos do filtro ativo.

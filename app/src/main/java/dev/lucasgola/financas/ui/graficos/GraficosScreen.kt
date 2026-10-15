@@ -62,6 +62,8 @@ import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.filtro.Periodo
+import dev.lucasgola.financas.filtro.Rateio
+import dev.lucasgola.financas.filtro.comValorNasCategorias
 import dev.lucasgola.financas.graficos.FatiaCategoria
 import dev.lucasgola.financas.graficos.FatiaEstabelecimento
 import dev.lucasgola.financas.graficos.ResumoMes
@@ -115,6 +117,9 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
 
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
+    /** Divisão das notas com itens classificados em outras categorias. */
+    private val rateio = db.notaDao().observarItensRateio().map(::Rateio)
+
     private val doPeriodo = filtroGlobal.flatMapLatest { f ->
         dao.observarFiltrado(ConsultaLancamentos.montar(f, hoje()).paraRoom())
     }
@@ -123,17 +128,23 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
     private val evolucao = filtroGlobal.flatMapLatest { f ->
         val meses = mesesDaEvolucao(f.periodo, hoje())
         val janela = f.copy(periodo = Periodo.Personalizado(meses.first().atDay(1), meses.last().atEndOfMonth()))
-        dao.observarFiltrado(ConsultaLancamentos.montar(janela, hoje()).paraRoom()).map { evolucaoMensal(it, meses) }
+        combine(dao.observarFiltrado(ConsultaLancamentos.montar(janela, hoje()).paraRoom()), rateio) { lista, r ->
+            evolucaoMensal(lista.comValorNasCategorias(r, f.categorias), meses)
+        }
     }
 
-    val ui: StateFlow<GraficosUi> = combine(doPeriodo, evolucao, estabelecimentos, filtroGlobal) { lista, evo, ests, f ->
+    private val dados = combine(doPeriodo, rateio, categorias) { lista, r, cats -> Triple(lista, r, cats.associateBy { it.id }) }
+
+    val ui: StateFlow<GraficosUi> = combine(dados, evolucao, estabelecimentos, filtroGlobal) { (lista, r, cats), evo, ests, f ->
         // Filtrando só entradas, o gráfico por categoria passa a mostrar entradas.
         val tipo = if (f.tipo == TipoLancamento.ENTRADA) TipoLancamento.ENTRADA else TipoLancamento.SAIDA
+        // Com filtro de categoria, cada nota conta só a parte dessas categorias (ver [comValorNasCategorias]).
+        val atribuida = lista.comValorNasCategorias(r, f.categorias)
         GraficosUi(
             tipoCategorias = tipo,
-            totalCentavos = lista.filter { it.lancamento.tipo == tipo }.sumOf { it.lancamento.valorCentavos },
-            categorias = porCategoria(lista, tipo),
-            estabelecimentos = topEstabelecimentos(lista, ests.associate { it.id to it.razaoSocial }),
+            totalCentavos = atribuida.filter { it.lancamento.tipo == tipo }.sumOf { it.lancamento.valorCentavos },
+            categorias = porCategoria(lista, tipo, r, cats, f.categorias),
+            estabelecimentos = topEstabelecimentos(atribuida, ests.associate { it.id to it.razaoSocial }),
             evolucao = evo,
             carregando = false,
         )

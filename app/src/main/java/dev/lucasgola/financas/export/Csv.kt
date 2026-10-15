@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter
  * O valor do lançamento sai com sinal (saída negativa), para somar a coluna e obter o saldo.
  * Com [incluirItens], cada item de nota vira uma linha que repete os dados do lançamento:
  * nesse modo, some a coluna "Valor do item", não a "Valor".
+ * Com filtro de categoria, "Valor" é só a parte do lançamento nessas categorias, como no extrato.
  */
 object Csv {
     const val MIME = "text/csv"
@@ -26,7 +27,7 @@ object Csv {
         "Data", "Hora", "Tipo", "Descrição", "Categoria", "Estabelecimento", "CNPJ",
         "Forma de pagamento", "Origem", "Valor", "Observação",
     )
-    private val colunasItem = listOf("Item", "Código", "Quantidade", "Unidade", "Valor unitário", "Valor do item")
+    private val colunasItem = listOf("Item", "Código", "Quantidade", "Unidade", "Valor unitário", "Valor do item", "Categoria do item")
 
     fun gerar(dados: DadosExportacao, incluirItens: Boolean): String = buildString {
         append(BOM)
@@ -43,6 +44,8 @@ object Csv {
                         base + listOf(
                             texto(i.descricao), texto(i.codigo), decimal(i.quantidade), texto(i.unidade),
                             decimal(i.valorUnitario), centavos(i.valorTotalCentavos),
+                            // Item sem categoria própria fica na do lançamento.
+                            texto(i.categoriaId?.let { dados.categorias[it]?.nome } ?: l.dados.categoriaNome),
                         )
                     )
                 }
@@ -64,7 +67,7 @@ object Csv {
             e.estabelecimento?.cnpj?.let(::formatarCnpj).orEmpty(),
             texto(l.formaPagamento.orEmpty()),
             if (l.origem == OrigemLancamento.NFCE) "Nota fiscal" else "Manual",
-            centavos(sinal * l.valorCentavos),
+            centavos(sinal * e.valorCentavos),
             texto(l.observacao.orEmpty()),
         )
     }

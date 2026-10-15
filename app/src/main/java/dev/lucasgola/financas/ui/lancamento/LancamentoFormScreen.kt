@@ -1,6 +1,13 @@
 package dev.lucasgola.financas.ui.lancamento
 
 import androidx.compose.foundation.layout.Arrangement
+import dev.lucasgola.financas.util.formatarMoeda
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -129,7 +136,10 @@ class LancamentoFormViewModel(
                 _nota.value = NotaVinculada(
                     nota = n,
                     itens = notaDao.itens(n.id).map {
-                        LinhaItem(it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos)
+                        LinhaItem(
+                            it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos,
+                            id = it.id, categoriaId = it.categoriaId,
+                        )
                     },
                     estabelecimento = original?.estabelecimentoId?.let { estabelecimentoDao.buscar(it) },
                     formaPagamento = original?.formaPagamento,
@@ -175,6 +185,17 @@ class LancamentoFormViewModel(
         }
     }
 
+    /** Classifica um item numa categoria própria; null devolve o item à categoria do lançamento. */
+    fun classificarItem(item: LinhaItem, categoriaId: Long?) {
+        val atual = _nota.value ?: return
+        // Escolher a própria categoria do lançamento é o mesmo que não classificar.
+        val nova = categoriaId?.takeIf { it != original?.categoriaId }
+        viewModelScope.launch {
+            notaDao.classificarItem(item.id, nova)
+            _nota.value = atual.copy(itens = atual.itens.map { if (it.id == item.id) it.copy(categoriaId = nova) else it })
+        }
+    }
+
     fun excluir(onOk: () -> Unit) {
         val o = original ?: return
         viewModelScope.launch {
@@ -195,6 +216,7 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
     val nota by vm.nota.collectAsStateWithLifecycle()
 
     var confirmarExclusao by remember { mutableStateOf(false) }
+    var classificando by remember { mutableStateOf<LinhaItem?>(null) }
 
     Scaffold(
         topBar = {
@@ -265,8 +287,24 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
 
             Button(onClick = { vm.salvar(onFechar) }, modifier = Modifier.fillMaxWidth()) { Text("Salvar") }
 
-            nota?.let { NotaDoLancamento(it) }
+            nota?.let { n ->
+                NotaDoLancamento(
+                    n,
+                    nomeCategoria = { id -> categorias.firstOrNull { it.id == id }?.nome },
+                    onClicarItem = { classificando = it },
+                )
+            }
         }
+    }
+
+    classificando?.let { item ->
+        DialogoCategoriaItem(
+            item = item,
+            categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == item.categoriaId },
+            categoriaDaNota = categorias.firstOrNull { it.id == form.categoriaId }?.nome,
+            onEscolher = { id -> classificando = null; vm.classificarItem(item, id) },
+            onCancelar = { classificando = null },
+        )
     }
 
     if (confirmarExclusao) {
@@ -285,7 +323,7 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
 private val fmtEmissao = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 
 @Composable
-private fun NotaDoLancamento(v: NotaVinculada) {
+private fun NotaDoLancamento(v: NotaVinculada, nomeCategoria: (Long) -> String?, onClicarItem: (LinhaItem) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             v.estabelecimento?.let { e ->
@@ -312,11 +350,62 @@ private fun NotaDoLancamento(v: NotaVinculada) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                ListaItensNota(v.itens)
+                Text(
+                    "Toque num item para colocá-lo em outra categoria (opcional). Ex.: a carne da compra do mercado.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ListaItensNota(v.itens, nomeCategoria = nomeCategoria, onClicar = onClicarItem)
                 v.nota.valorBrutoCentavos?.let { LinhaTotal("Subtotal", it) }
                 if (v.nota.descontoCentavos > 0) LinhaTotal("Descontos", -v.nota.descontoCentavos)
                 v.nota.valorTotalCentavos?.let { LinhaTotal("Total pago", it, destaque = true) }
+                v.nota.valorTotalCentavos?.let { total ->
+                    val conferido = v.itens.sumOf { it.valorTotalCentavos } - v.nota.descontoCentavos
+                    if (conferido != total) Text(
+                        "A soma dos itens menos os descontos (${formatarMoeda(conferido)}) não bate com o total pago. " +
+                            "Os dados estão como vieram da SEFAZ.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DialogoCategoriaItem(
+    item: LinhaItem,
+    categorias: List<Categoria>,
+    categoriaDaNota: String?,
+    onEscolher: (Long?) -> Unit,
+    onCancelar: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancelar,
+        title = { Text(item.descricao, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                OpcaoCategoria(
+                    "Mesma da nota" + (categoriaDaNota?.let { " ($it)" } ?: ""),
+                    selecionada = item.categoriaId == null,
+                ) { onEscolher(null) }
+                categorias.forEach { c ->
+                    OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } },
+    )
+}
+
+@Composable
+private fun OpcaoCategoria(nome: String, selecionada: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().selectable(selecionada, role = Role.RadioButton, onClick = onClick).padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selecionada, onClick = null)
+        Text(nome, Modifier.padding(start = 8.dp))
     }
 }

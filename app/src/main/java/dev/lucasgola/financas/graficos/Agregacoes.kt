@@ -1,8 +1,10 @@
 package dev.lucasgola.financas.graficos
 
+import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.filtro.Periodo
+import dev.lucasgola.financas.filtro.Rateio
 import dev.lucasgola.financas.util.ZONA
 import java.time.LocalDate
 import java.time.YearMonth
@@ -24,17 +26,32 @@ data class ResumoMes(val mes: YearMonth, val entradasCentavos: Long, val saidasC
     val saldoCentavos: Long get() = entradasCentavos - saidasCentavos
 }
 
-/** Total por categoria para um tipo (saídas, por padrão), do maior para o menor. */
-fun porCategoria(lista: List<LancamentoComCategoria>, tipo: TipoLancamento = TipoLancamento.SAIDA): List<FatiaCategoria> {
-    val doTipo = lista.filter { it.lancamento.tipo == tipo }
-    val total = doTipo.sumOf { it.lancamento.valorCentavos }
-    if (total == 0L) return emptyList()
-    return doTipo.groupBy { it.lancamento.categoriaId }
-        .map { (id, itens) ->
-            val soma = itens.sumOf { it.lancamento.valorCentavos }
-            FatiaCategoria(id, itens.first().categoriaNome, itens.first().categoriaCor, soma, soma.toDouble() / total)
+/**
+ * Total por categoria para um tipo (saídas, por padrão), do maior para o menor.
+ * Notas com itens classificados são repartidas pelo [rateio]; com [restringirA], só essas
+ * categorias aparecem (o resto da nota, de outra categoria, não entra).
+ */
+fun porCategoria(
+    lista: List<LancamentoComCategoria>,
+    tipo: TipoLancamento = TipoLancamento.SAIDA,
+    rateio: Rateio = Rateio.VAZIO,
+    categorias: Map<Long, Categoria> = emptyMap(),
+    restringirA: Set<Long> = emptySet(),
+): List<FatiaCategoria> {
+    val totais = LinkedHashMap<Long, Long>()
+    val nomeCor = HashMap<Long, Pair<String, Long>>()
+    lista.filter { it.lancamento.tipo == tipo }.forEach { item ->
+        nomeCor.putIfAbsent(item.lancamento.categoriaId, item.categoriaNome to item.categoriaCor)
+        rateio.partes(item.lancamento).forEach { (id, valor) ->
+            if (restringirA.isEmpty() || id in restringirA) totais.merge(id, valor, Long::plus)
         }
-        .sortedWith(compareByDescending<FatiaCategoria> { it.totalCentavos }.thenBy { it.nome })
+    }
+    val total = totais.values.sum()
+    if (total == 0L) return emptyList()
+    return totais.map { (id, soma) ->
+        val (nome, cor) = categorias[id]?.let { it.nome to it.cor } ?: nomeCor[id] ?: ("Categoria" to 0xFF757575)
+        FatiaCategoria(id, nome, cor, soma, soma.toDouble() / total)
+    }.sortedWith(compareByDescending<FatiaCategoria> { it.totalCentavos }.thenBy { it.nome })
 }
 
 /** Saídas por estabelecimento (só lançamentos vinculados a um), maiores primeiro. */

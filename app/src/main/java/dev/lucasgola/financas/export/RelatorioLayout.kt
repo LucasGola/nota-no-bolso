@@ -49,12 +49,12 @@ object RelatorioLayout {
         add(LinhaRelatorio.Secao("Resumo"))
         add(
             LinhaRelatorio.Resumo(
-                entradas = lista.filter { it.lancamento.tipo == TipoLancamento.ENTRADA }.sumOf { it.lancamento.valorCentavos },
-                saidas = lista.filter { it.lancamento.tipo == TipoLancamento.SAIDA }.sumOf { it.lancamento.valorCentavos },
+                entradas = dados.lancamentos.filter { it.dados.lancamento.tipo == TipoLancamento.ENTRADA }.sumOf { it.valorCentavos },
+                saidas = dados.lancamentos.filter { it.dados.lancamento.tipo == TipoLancamento.SAIDA }.sumOf { it.valorCentavos },
             )
         )
 
-        val categorias = porCategoria(lista, TipoLancamento.SAIDA)
+        val categorias = porCategoria(lista, TipoLancamento.SAIDA, dados.rateio, dados.categorias, dados.categoriasFiltro)
         if (categorias.isNotEmpty()) {
             add(LinhaRelatorio.Secao("Saídas por categoria"))
             categorias.forEach { add(LinhaRelatorio.Categoria(it.nome, it.totalCentavos, it.fracao)) }
@@ -73,7 +73,7 @@ object RelatorioLayout {
                     data = l.dataHora.atZone(ZONA).format(fmtData),
                     descricao = l.descricao.ifBlank { e.dados.categoriaNome },
                     categoria = e.dados.categoriaNome,
-                    valorComSinal = if (l.tipo == TipoLancamento.SAIDA) -l.valorCentavos else l.valorCentavos,
+                    valorComSinal = if (l.tipo == TipoLancamento.SAIDA) -e.valorCentavos else e.valorCentavos,
                 )
             )
             if (incluirItens) e.itens.forEach { i ->

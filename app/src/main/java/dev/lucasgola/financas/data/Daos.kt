@@ -8,7 +8,18 @@ import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
+import dev.lucasgola.financas.filtro.ItemRateio
 import kotlinx.coroutines.flow.Flow
+
+private const val SQL_ITENS_RATEIO = """
+    SELECT n.lancamentoId AS lancamentoId, i.categoriaId AS categoriaId,
+           i.valorTotalCentavos - i.descontoCentavos AS valorCentavos
+    FROM item_nota i JOIN nota_fiscal n ON n.id = i.notaId
+    WHERE n.lancamentoId IN (
+        SELECT n2.lancamentoId FROM nota_fiscal n2 JOIN item_nota i2 ON i2.notaId = n2.id
+        WHERE i2.categoriaId IS NOT NULL
+    )
+"""
 
 @Dao
 interface CategoriaDao {
@@ -130,6 +141,16 @@ interface NotaDao {
 
     @Query("DELETE FROM item_nota WHERE notaId = :notaId")
     suspend fun excluirItens(notaId: Long)
+
+    @Query("UPDATE item_nota SET categoriaId = :categoriaId WHERE id = :itemId")
+    suspend fun classificarItem(itemId: Long, categoriaId: Long?)
+
+    /** Todos os itens das notas que têm ao menos um item classificado (são as únicas que precisam de rateio). */
+    @Query(SQL_ITENS_RATEIO)
+    fun observarItensRateio(): Flow<List<ItemRateio>>
+
+    @Query(SQL_ITENS_RATEIO)
+    suspend fun listarItensRateio(): List<ItemRateio>
 }
 
 /** Leitura e escrita em massa de todas as tabelas, usada só pelo backup. */

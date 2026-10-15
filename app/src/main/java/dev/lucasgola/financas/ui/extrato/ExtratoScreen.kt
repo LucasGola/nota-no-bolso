@@ -55,6 +55,8 @@ import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
+import dev.lucasgola.financas.filtro.Rateio
+import dev.lucasgola.financas.filtro.comValorNasCategorias
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.export.Exportador
 import dev.lucasgola.financas.ui.exportar.DialogoExportar
@@ -71,6 +73,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.StateFlow
@@ -78,7 +81,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 
-data class DiaExtrato(val data: LocalDate, val saldoCentavos: Long, val itens: List<LancamentoComCategoria>)
+/**
+ * Linha do extrato. Com filtro de categoria, [dados] traz só a parte do lançamento nessas
+ * categorias (ver [comValorNasCategorias]) e [valorTotalCentavos] guarda o valor cheio.
+ */
+data class LinhaExtrato(val dados: LancamentoComCategoria, val valorTotalCentavos: Long, val categoriasNaNota: Int)
+
+data class DiaExtrato(val data: LocalDate, val saldoCentavos: Long, val itens: List<LinhaExtrato>)
 
 data class ExtratoUi(
     val entradasCentavos: Long = 0,
@@ -107,16 +116,27 @@ class ExtratoViewModel(db: AppDatabase, private val filtroGlobal: MutableStateFl
 
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
+    private val rateio = db.notaDao().observarItensRateio().map(::Rateio)
+
     val ui: StateFlow<ExtratoUi> = filtroGlobal
-        .flatMapLatest { f -> db.lancamentoDao().observarFiltrado(ConsultaLancamentos.montar(f, LocalDate.now(ZONA)).paraRoom()) }
-        .map { lista ->
-            ExtratoUi(
-                entradasCentavos = lista.filter { it.lancamento.tipo == TipoLancamento.ENTRADA }.sumOf { it.lancamento.valorCentavos },
-                saidasCentavos = lista.filter { it.lancamento.tipo == TipoLancamento.SAIDA }.sumOf { it.lancamento.valorCentavos },
-                dias = lista.groupBy { it.lancamento.dataHora.dataLocal() }
-                    .map { (dia, itens) -> DiaExtrato(dia, itens.sumOf { it.valorComSinal() }, itens) },
-                carregando = false,
-            )
+        .flatMapLatest { f ->
+            combine(db.lancamentoDao().observarFiltrado(ConsultaLancamentos.montar(f, LocalDate.now(ZONA)).paraRoom()), rateio) { lista, r ->
+                val cheios = lista.associate { it.lancamento.id to it.lancamento.valorCentavos }
+                val atribuida = lista.comValorNasCategorias(r, f.categorias)
+                ExtratoUi(
+                    entradasCentavos = atribuida.filter { it.lancamento.tipo == TipoLancamento.ENTRADA }.sumOf { it.lancamento.valorCentavos },
+                    saidasCentavos = atribuida.filter { it.lancamento.tipo == TipoLancamento.SAIDA }.sumOf { it.lancamento.valorCentavos },
+                    dias = atribuida.groupBy { it.lancamento.dataHora.dataLocal() }
+                        .map { (dia, itens) ->
+                            DiaExtrato(
+                                dia,
+                                itens.sumOf { it.valorComSinal() },
+                                itens.map { LinhaExtrato(it, cheios.getValue(it.lancamento.id), r.partes(it.lancamento).size) },
+                            )
+                        },
+                    carregando = false,
+                )
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExtratoUi())
 }
@@ -223,8 +243,8 @@ fun ExtratoScreen(
                 }
                 ui.dias.forEach { dia ->
                     item(key = "dia-${dia.data}") { CabecalhoDia(dia) }
-                    items(dia.itens, key = { it.lancamento.id }) { item ->
-                        LinhaLancamento(item, onClick = { onAbrir(item.lancamento.id) })
+                    items(dia.itens, key = { it.dados.lancamento.id }) { linha ->
+                        LinhaLancamento(linha, onClick = { onAbrir(linha.dados.lancamento.id) })
                         HorizontalDivider()
                     }
                 }
@@ -283,8 +303,15 @@ private fun CabecalhoDia(dia: DiaExtrato) {
 }
 
 @Composable
-private fun LinhaLancamento(item: LancamentoComCategoria, onClick: () -> Unit) {
+private fun LinhaLancamento(linha: LinhaExtrato, onClick: () -> Unit) {
+    val item = linha.dados
     val l = item.lancamento
+    val subtitulo = when {
+        l.valorCentavos != linha.valorTotalCentavos ->
+            "${item.categoriaNome} · ${formatarMoeda(l.valorCentavos)} de ${formatarMoeda(linha.valorTotalCentavos)}"
+        linha.categoriasNaNota > 1 -> "${item.categoriaNome} · itens em ${linha.categoriasNaNota} categorias"
+        else -> item.categoriaNome
+    }
     val entrada = l.tipo == TipoLancamento.ENTRADA
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -299,7 +326,7 @@ private fun LinhaLancamento(item: LancamentoComCategoria, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(item.categoriaNome, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(
             (if (entrada) "+ " else "− ") + formatarMoeda(l.valorCentavos),

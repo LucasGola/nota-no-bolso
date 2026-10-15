@@ -74,10 +74,10 @@ class ExportacaoTest {
     fun `csv com itens repete o lancamento e preserva casas decimais`() {
         val linhas = Csv.gerar(dados, incluirItens = true).removePrefix("\uFEFF").split("\r\n").filter { it.isNotEmpty() }
         assertEquals(4, linhas.size) // cabeçalho + 2 itens + salário sem itens
-        assertTrue(linhas[0].endsWith(";Item;Código;Quantidade;Unidade;Valor unitário;Valor do item"))
-        assertTrue(linhas[1].endsWith(";Crunch Chicken;26158;4;UN;10,1;40,40"))
-        assertTrue(linhas[2].endsWith(";Batata Média;9002;0,432;KG;5,899;2,55"))
-        assertTrue(linhas[3].endsWith(";Manual;6500,00;;;;;;;"))
+        assertTrue(linhas[0].endsWith(";Item;Código;Quantidade;Unidade;Valor unitário;Valor do item;Categoria do item"))
+        assertTrue(linhas[1].endsWith(";Crunch Chicken;26158;4;UN;10,1;40,40;Alimentação fora"))
+        assertTrue(linhas[2].endsWith(";Batata Média;9002;0,432;KG;5,899;2,55;Alimentação fora"))
+        assertTrue(linhas[3].endsWith(";Manual;6500,00;;;;;;;;"))
     }
 
     @Test
@@ -87,6 +87,24 @@ class ExportacaoTest {
         assertEquals("'@soma", Csv.texto("@soma"))
         assertEquals("Leite", Csv.texto("Leite"))
         assertEquals("", Csv.texto(""))
+    }
+
+    @Test
+    fun `item classificado aparece com a propria categoria e reparte o relatorio`() {
+        val lazer = Categoria(9, "Lazer", 0, TipoCategoria.SAIDA)
+        val comItemClassificado = dados.copy(
+            lancamentos = dados.lancamentos.map { e ->
+                e.copy(itens = e.itens.map { if (it.ordem == 2) it.copy(categoriaId = 9) else it })
+            },
+            categorias = mapOf(9L to lazer),
+        )
+        val csv = Csv.gerar(comItemClassificado, incluirItens = true)
+        assertTrue(csv.contains(";Batata Média;9002;0,432;KG;5,899;2,55;Lazer\r\n"))
+
+        // Itens somam 42,95 e a nota custou 84,90: a batata (2,55) leva 2,55 × 84,90 / 42,95 = 5,04.
+        val categorias = RelatorioLayout.montar(comItemClassificado, false, 515f, medidor)
+            .filterIsInstance<LinhaRelatorio.Categoria>().associate { it.nome to it.valor }
+        assertEquals(mapOf("Alimentação fora" to 7986L, "Lazer" to 504L), categorias)
     }
 
     // ---- Descrição do filtro e nome do arquivo ----
