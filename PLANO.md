@@ -187,7 +187,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - O filtro tem uma seção de método (chips no extrato e nos gráficos). O CSV ganhou a coluna "Método de pagamento". O backup passou à versão 2 e continua lendo backups da versão 1.
 - Método já usado não pode ser excluído, só desativado (como as categorias).
 - **Primeira mudança de schema (v1 → v2):** tabela `metodo_pagamento` e coluna `lancamento.metodoPagamentoId`. A migração é feita à mão, sem recriar tabelas, então os dados existentes não são copiados. `MigracaoTest` monta um banco v1 com dados num SQLite real, aplica a migração e compara colunas, chaves estrangeiras e índices com um banco v2 criado do zero (o que o Room valida ao abrir). Conferido também que o teste falha se faltar o índice. Sem `fallbackToDestructiveMigration`: se a migração falhar, o app não abre, mas não apaga dados.
-- **Não verificado em aparelho:** o emulador não sobe nesta máquina por falta de memória. O primeiro teste real é atualizar o app de quem já tem dados, com um backup salvo antes.
+- **Verificado em aparelho (2026-10-15):** a atualização da v1.1.0 para a v1.2.0 no celular do autor, com dados reais, preservou lançamentos, totais e notas. O cadastro, o uso e o filtro por método funcionaram.
 
 ### CA-07 — Exportação CSV
 - [ ] Exporta os lançamentos do filtro ativo.
