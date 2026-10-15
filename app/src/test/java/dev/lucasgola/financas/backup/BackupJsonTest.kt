@@ -28,7 +28,7 @@ class BackupJsonTest {
             Categoria(1, "Alimentação fora", 0xFFEF6C00, TipoCategoria.SAIDA),
             Categoria(7, "Salário", 0xFF00897B, TipoCategoria.ENTRADA, ativa = false),
         ),
-        estabelecimentos = listOf(Estabelecimento(3, "58891504001796", "Horizonte \"Restaurantes\" S.A.", "Rua X, 1\nSão Paulo", 1)),
+        estabelecimentos = listOf(Estabelecimento(3, "58891504001796", "Horizonte \"Restaurantes\" S.A.", "Rua X, 1\nSão Paulo", 1, metodoPagamentoPadraoId = 1)),
         lancamentos = listOf(
             Lancamento(
                 10, TipoLancamento.SAIDA, 8490, t, "Almoço", 1, OrigemLancamento.NFCE, "Outros", 3, null,
@@ -71,11 +71,20 @@ class BackupJsonTest {
             remove("metodos")
             val lancamentos = getJSONArray("lancamentos")
             for (i in 0 until lancamentos.length()) lancamentos.getJSONObject(i).remove("metodoPagamentoId")
+            val estabelecimentos = getJSONArray("estabelecimentos")
+            for (i in 0 until estabelecimentos.length()) estabelecimentos.getJSONObject(i).remove("metodoPagamentoPadraoId")
         }
         val lido = BackupJson.ler(v1.toString())
         assertEquals(emptyList<MetodoPagamento>(), lido.metodos)
         assertEquals(listOf<Long?>(null, null), lido.lancamentos.map { it.metodoPagamentoId })
-        assertEquals(backup.copy(metodos = emptyList(), lancamentos = backup.lancamentos.map { it.copy(metodoPagamentoId = null) }), lido)
+        assertEquals(
+            backup.copy(
+                metodos = emptyList(),
+                lancamentos = backup.lancamentos.map { it.copy(metodoPagamentoId = null) },
+                estabelecimentos = backup.estabelecimentos.map { it.copy(metodoPagamentoPadraoId = null) },
+            ),
+            lido,
+        )
     }
 
     @Test

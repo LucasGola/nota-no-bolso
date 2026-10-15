@@ -189,6 +189,11 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - **Primeira mudança de schema (v1 → v2):** tabela `metodo_pagamento` e coluna `lancamento.metodoPagamentoId`. A migração é feita à mão, sem recriar tabelas, então os dados existentes não são copiados. `MigracaoTest` monta um banco v1 com dados num SQLite real, aplica a migração e compara colunas, chaves estrangeiras e índices com um banco v2 criado do zero (o que o Room valida ao abrir). Conferido também que o teste falha se faltar o índice. Sem `fallbackToDestructiveMigration`: se a migração falhar, o app não abre, mas não apaga dados.
 - **Verificado em aparelho (2026-10-15):** a atualização da v1.1.0 para a v1.2.0 no celular do autor, com dados reais, preservou lançamentos, totais e notas. O cadastro, o uso e o filtro por método funcionaram.
 
+### Método por estabelecimento e gráfico por método (v1.3)
+- Ao importar uma nota, o método de pagamento vem preenchido com o último usado naquele CNPJ, como já acontece com a categoria. Escolher "Nenhum" também é lembrado. Corrigir o método de um lançamento de nota (ex.: era VR, não débito) atualiza a sugestão para as próximas notas dessa loja.
+- Gráficos: o painel "Gastos por método de pagamento" (ou entradas, se o filtro for só de entradas) segue o mesmo filtro dos outros painéis. "Sem método" fica sempre por último, em cinza, e não é tocável. Tocar num método abre o extrato filtrado por ele. O painel só aparece se houver método cadastrado.
+- Schema v3: coluna `estabelecimento.metodoPagamentoPadraoId`, migração manual 2→3. `MigracaoTest` cobre 2→3 e a cadeia 1→3, o caminho de quem pular a v1.2. O backup passou à versão 3 e continua lendo as versões 1 e 2.
+
 ### CA-07 — Exportação CSV
 - [ ] Exporta os lançamentos do filtro ativo.
 - [ ] Opção de incluir itens das notas (uma linha por item, repetindo dados da nota).

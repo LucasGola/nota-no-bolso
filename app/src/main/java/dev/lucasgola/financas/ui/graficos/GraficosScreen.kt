@@ -57,6 +57,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.lucasgola.financas.data.AppDatabase
 import dev.lucasgola.financas.data.Categoria
+import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.data.TipoLancamento
@@ -67,6 +68,8 @@ import dev.lucasgola.financas.filtro.Rateio
 import dev.lucasgola.financas.filtro.comValorNasCategorias
 import dev.lucasgola.financas.graficos.FatiaCategoria
 import dev.lucasgola.financas.graficos.FatiaEstabelecimento
+import dev.lucasgola.financas.graficos.FatiaMetodo
+import dev.lucasgola.financas.graficos.porMetodo
 import dev.lucasgola.financas.graficos.ResumoMes
 import dev.lucasgola.financas.graficos.evolucaoMensal
 import dev.lucasgola.financas.graficos.mesesDaEvolucao
@@ -101,6 +104,8 @@ data class GraficosUi(
     val totalCentavos: Long = 0,
     val categorias: List<FatiaCategoria> = emptyList(),
     val estabelecimentos: List<FatiaEstabelecimento> = emptyList(),
+    /** Vazio quando não há método cadastrado: o painel nem aparece. */
+    val metodos: List<FatiaMetodo> = emptyList(),
     val evolucao: List<ResumoMes> = emptyList(),
     val carregando: Boolean = true,
 )
@@ -136,9 +141,18 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
         }
     }
 
-    private val dados = combine(doPeriodo, rateio, categorias) { lista, r, cats -> Triple(lista, r, cats.associateBy { it.id }) }
+    private val dados = combine(doPeriodo, rateio, categorias, metodos) { lista, r, cats, mets ->
+        Dados(lista, r, cats.associateBy { it.id }, mets.associate { it.id to it.nome })
+    }
 
-    val ui: StateFlow<GraficosUi> = combine(dados, evolucao, estabelecimentos, filtroGlobal) { (lista, r, cats), evo, ests, f ->
+    private data class Dados(
+        val lista: List<LancamentoComCategoria>,
+        val rateio: Rateio,
+        val categorias: Map<Long, Categoria>,
+        val metodos: Map<Long, String>,
+    )
+
+    val ui: StateFlow<GraficosUi> = combine(dados, evolucao, estabelecimentos, filtroGlobal) { (lista, r, cats, mets), evo, ests, f ->
         // Filtrando só entradas, o gráfico por categoria passa a mostrar entradas.
         val tipo = if (f.tipo == TipoLancamento.ENTRADA) TipoLancamento.ENTRADA else TipoLancamento.SAIDA
         // Com filtro de categoria, cada nota conta só a parte dessas categorias (ver [comValorNasCategorias]).
@@ -148,6 +162,7 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
             totalCentavos = atribuida.filter { it.lancamento.tipo == tipo }.sumOf { it.lancamento.valorCentavos },
             categorias = porCategoria(lista, tipo, r, cats, f.categorias),
             estabelecimentos = topEstabelecimentos(atribuida, ests.associate { it.id to it.razaoSocial }),
+            metodos = if (mets.isEmpty()) emptyList() else porMetodo(atribuida, mets, tipo),
             evolucao = evo,
             carregando = false,
         )
@@ -193,6 +208,22 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
                             proporcao = c.totalCentavos.toFloat() / ui.categorias.first().totalCentavos,
                             cor = Color(c.cor),
                             onClick = { detalhar { it.copy(categorias = setOf(c.categoriaId)) } },
+                        )
+                    }
+                }
+
+                if (ui.metodos.isNotEmpty()) Painel(
+                    if (ui.tipoCategorias == TipoLancamento.ENTRADA) "Entradas por método de pagamento" else "Gastos por método de pagamento"
+                ) {
+                    val maior = ui.metodos.maxOf { it.totalCentavos }
+                    ui.metodos.forEach { m ->
+                        BarraHorizontal(
+                            rotulo = m.nome,
+                            valor = "${formatarMoeda(m.totalCentavos)} · ${percentual(m.fracao)}",
+                            proporcao = m.totalCentavos.toFloat() / maior,
+                            cor = if (m.metodoId == null) cores.eixo else cores.serie,
+                            // "Sem método" não tem filtro correspondente.
+                            onClick = m.metodoId?.let { id -> { detalhar { it.copy(metodosPagamento = setOf(id)) } } },
                         )
                     }
                 }
@@ -259,9 +290,9 @@ private fun Vazio(carregando: Boolean) {
  * Extremidade arredondada de 4dp só na ponta do dado; a base fica reta, ancorada no zero.
  */
 @Composable
-private fun BarraHorizontal(rotulo: String, valor: String, proporcao: Float, cor: Color, onClick: () -> Unit) {
+private fun BarraHorizontal(rotulo: String, valor: String, proporcao: Float, cor: Color, onClick: (() -> Unit)?) {
     Column(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp)
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(vertical = 4.dp)
             .semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

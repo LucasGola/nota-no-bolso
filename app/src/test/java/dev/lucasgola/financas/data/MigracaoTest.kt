@@ -112,4 +112,53 @@ class MigracaoTest {
         antigo.exec("DELETE FROM metodo_pagamento WHERE id = 1")
         assertEquals(listOf(listOf<Any?>(null)), antigo.linhas("SELECT metodoPagamentoId FROM lancamento"))
     }
+
+    private fun assertMesmaEstrutura(esperado: Connection, migrado: Connection) {
+        assertEquals(esperado.tabelas(), migrado.tabelas())
+        for (tabela in esperado.tabelas()) {
+            assertEquals("estrutura de $tabela", esperado.estrutura(tabela), migrado.estrutura(tabela))
+        }
+        assertTrue(migrado.linhas("PRAGMA foreign_key_check").isEmpty())
+    }
+
+    @Test
+    fun `migracao 2 para 3 chega no schema 3 e preserva os dados`() {
+        val antigo = criar(2)
+        antigo.exec("INSERT INTO categoria VALUES (1, 'Mercado', 4281236786, 'SAIDA', 1)")
+        antigo.exec("INSERT INTO metodo_pagamento VALUES (1, 'VR', NULL, 1)")
+        antigo.exec("INSERT INTO estabelecimento VALUES (1, '58891504001796', 'Horizonte', 'Rua X', 1)")
+        antigo.exec(
+            "INSERT INTO lancamento VALUES (10, 'SAIDA', 8490, 1759417680000, 'Almoço', 1, 'NFCE', 'Débito', 1, NULL, 1, 2, 1)"
+        )
+
+        Migracoes.SQL_2_PARA_3.forEach { antigo.exec(it) }
+
+        assertMesmaEstrutura(criar(3), antigo)
+        assertEquals(
+            listOf(listOf<Any?>(1, "Horizonte", 1, null)),
+            antigo.linhas("SELECT id, razaoSocial, categoriaPadraoId, metodoPagamentoPadraoId FROM estabelecimento"),
+        )
+        assertEquals(listOf(listOf<Any?>(10, 1)), antigo.linhas("SELECT id, metodoPagamentoId FROM lancamento"))
+
+        // Apagar o método limpa o padrão do estabelecimento, sem apagar o estabelecimento.
+        antigo.exec("UPDATE estabelecimento SET metodoPagamentoPadraoId = 1")
+        antigo.exec("UPDATE lancamento SET metodoPagamentoId = NULL")
+        antigo.exec("DELETE FROM metodo_pagamento WHERE id = 1")
+        assertEquals(listOf(listOf<Any?>(null)), antigo.linhas("SELECT metodoPagamentoPadraoId FROM estabelecimento"))
+    }
+
+    @Test
+    fun `quem pula versoes migra de 1 direto para 3`() {
+        val antigo = criar(1)
+        antigo.exec("INSERT INTO categoria VALUES (1, 'Mercado', 4281236786, 'SAIDA', 1)")
+        antigo.exec("INSERT INTO estabelecimento VALUES (1, '58891504001796', 'Horizonte', 'Rua X', 1)")
+        antigo.exec(
+            "INSERT INTO lancamento VALUES (10, 'SAIDA', 8490, 1759417680000, 'Almoço', 1, 'NFCE', 'Débito', 1, NULL, 1, 2)"
+        )
+
+        (Migracoes.SQL_1_PARA_2 + Migracoes.SQL_2_PARA_3).forEach { antigo.exec(it) }
+
+        assertMesmaEstrutura(criar(3), antigo)
+        assertEquals(listOf(listOf<Any?>(10, 8490, null)), antigo.linhas("SELECT id, valorCentavos, metodoPagamentoId FROM lancamento"))
+    }
 }

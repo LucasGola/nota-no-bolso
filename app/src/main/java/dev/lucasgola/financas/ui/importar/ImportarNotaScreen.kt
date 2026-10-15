@@ -108,6 +108,7 @@ class ImportarNotaViewModel(
                     categoriaId = p.categoriaSugeridaId,
                     descricao = p.nota.emitente.razaoSocial,
                     data = p.nota.dataEmissao.toLocalDate(),
+                    metodoPagamentoId = p.metodoSugeridoId,
                 )
             }
         }

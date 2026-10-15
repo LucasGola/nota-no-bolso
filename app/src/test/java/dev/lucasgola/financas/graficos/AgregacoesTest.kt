@@ -56,6 +56,18 @@ class AgregacoesTest {
     }
 
     @Test
+    fun `por metodo agrupa e deixa sem metodo por ultimo`() {
+        fun comMetodo(valor: Long, metodo: Long?) =
+            l(S, valor, "2026-10-01T10:00").let { it.copy(lancamento = it.lancamento.copy(metodoPagamentoId = metodo)) }
+        val lista = listOf(comMetodo(5000, null), comMetodo(3000, 1), comMetodo(1000, 2), comMetodo(1000, 1), l(E, 99999, "2026-10-01T10:00"))
+        val r = porMetodo(lista, mapOf(1L to "VR", 2L to "Nubank"))
+        assertEquals(listOf("VR" to 4000L, "Nubank" to 1000L, "Sem método" to 5000L), r.map { it.nome to it.totalCentavos })
+        assertEquals(1.0, r.sumOf { it.fracao }, 1e-9)
+        assertEquals(null, r.last().metodoId)
+        assertTrue(porMetodo(listOf(l(E, 100, "2026-10-01T10:00")), emptyMap()).isEmpty())
+    }
+
+    @Test
     fun `por categoria vazio quando nao ha saidas`() {
         assertTrue(porCategoria(listOf(l(E, 100, "2026-10-01T10:00"))).isEmpty())
     }

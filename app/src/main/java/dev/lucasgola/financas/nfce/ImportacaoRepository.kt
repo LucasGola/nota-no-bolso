@@ -17,12 +17,23 @@ sealed interface Preparo {
     data class Invalida(val mensagem: String) : Preparo
     data class JaImportada(val lancamentoId: Long) : Preparo
     /** Consulta OK; aguardando revisão do usuário antes de gravar. */
-    data class Pronta(val nota: NotaImportada, val urlQr: String, val categoriaSugeridaId: Long?) : Preparo
+    data class Pronta(
+        val nota: NotaImportada,
+        val urlQr: String,
+        val categoriaSugeridaId: Long?,
+        val metodoSugeridoId: Long? = null,
+    ) : Preparo
     /** Consulta falhou; a nota foi salva como PENDENTE. */
     data class Falhou(val mensagem: String) : Preparo
 }
 
 data class ResultadoReprocesso(val importadas: Int, val falhas: Int)
+
+/**
+ * Método escolhido numa importação, para lembrar no estabelecimento. É o último usado, inclusive
+ * "nenhum" (id null). Quando nem houve escolha (ex.: pendente completada à mão), não se passa nada.
+ */
+data class MetodoLembrado(val id: Long?)
 
 /** Orquestra a importação de NFC-e: consulta na SEFAZ, deduplicação por chave e gravação transacional. */
 class ImportacaoRepository(private val db: AppDatabase, private val service: NfceService) {
@@ -43,8 +54,8 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
 
         return try {
             val nota = service.consultar(conteudoQr)
-            val sugerida = estabelecimentoDao.buscarPorCnpj(nota.emitente.cnpj)?.categoriaPadraoId
-            Preparo.Pronta(nota, conteudoQr.trim(), sugerida)
+            val conhecido = estabelecimentoDao.buscarPorCnpj(nota.emitente.cnpj)
+            Preparo.Pronta(nota, conteudoQr.trim(), conhecido?.categoriaPadraoId, conhecido?.metodoPagamentoPadraoId)
         } catch (e: NfceParseException) {
             if (e.permanente) return Preparo.Invalida(e.message.orEmpty())
             registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota: ${e.message}")
@@ -76,6 +87,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
             razaoSocial = nota.emitente.razaoSocial,
             endereco = nota.emitente.endereco,
             categoriaId = categoriaId,
+            metodo = MetodoLembrado(metodoPagamentoId),
         )
         val lancamentoId = lancamentoDao.inserir(nota.paraLancamento(categoriaId, descricao, dataHora, estabelecimentoId, metodoPagamentoId))
         val notaId = if (existente == null) {
@@ -158,6 +170,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         razaoSocial: String?,
         endereco: String?,
         categoriaId: Long,
+        metodo: MetodoLembrado? = null,
     ): Long {
         val atual = estabelecimentoDao.buscarPorCnpj(cnpj)
         return if (atual == null) {
@@ -167,6 +180,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
                     razaoSocial = razaoSocial ?: formatarCnpj(cnpj),
                     endereco = endereco.orEmpty(),
                     categoriaPadraoId = categoriaId,
+                    metodoPagamentoPadraoId = metodo?.id,
                 )
             )
         } else {
@@ -175,6 +189,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
                     razaoSocial = razaoSocial ?: atual.razaoSocial,
                     endereco = endereco ?: atual.endereco,
                     categoriaPadraoId = categoriaId,
+                    metodoPagamentoPadraoId = if (metodo != null) metodo.id else atual.metodoPagamentoPadraoId,
                 )
             )
             atual.id

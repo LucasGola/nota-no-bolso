@@ -194,6 +194,12 @@ class LancamentoFormViewModel(
                 atualizadoEm = Instant.now(),
             )
             if (o == null) lancamentoDao.inserir(novo) else lancamentoDao.atualizar(novo)
+            // Corrigir o método depois de importar (ex.: era VR, não débito) vale para as próximas notas da loja.
+            if (o?.estabelecimentoId != null && o.metodoPagamentoId != novo.metodoPagamentoId) {
+                estabelecimentoDao.buscar(o.estabelecimentoId)?.let {
+                    estabelecimentoDao.atualizar(it.copy(metodoPagamentoPadraoId = novo.metodoPagamentoId))
+                }
+            }
             onOk()
         }
     }

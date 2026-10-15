@@ -36,8 +36,11 @@ class BackupInvalidoException(mensagem: String, causa: Throwable? = null) : Exce
 object BackupJson {
     const val MIME = "application/json"
     private const val FORMATO = "financas-backup"
-    /** 2: métodos de pagamento. Backups da versão 1 continuam sendo lidos (sem métodos). */
-    const val VERSAO = 2
+    /**
+     * 2: métodos de pagamento. 3: método padrão do estabelecimento.
+     * Backups antigos continuam sendo lidos: o que não existia na versão deles fica vazio.
+     */
+    const val VERSAO = 3
 
     fun gerar(b: Backup): String = JSONObject()
         .put("formato", FORMATO)
@@ -86,6 +89,7 @@ object BackupJson {
     private fun estabelecimento(e: Estabelecimento) = JSONObject()
         .put("id", e.id).put("cnpj", e.cnpj).put("razaoSocial", e.razaoSocial).put("endereco", e.endereco)
         .put("categoriaPadraoId", e.categoriaPadraoId.orNull())
+        .put("metodoPagamentoPadraoId", e.metodoPagamentoPadraoId.orNull())
 
     private fun lancamento(l: Lancamento) = JSONObject()
         .put("id", l.id).put("tipo", l.tipo.name).put("valorCentavos", l.valorCentavos)
@@ -126,6 +130,7 @@ object BackupJson {
     private fun estabelecimento(o: JSONObject) = Estabelecimento(
         id = o.getLong("id"), cnpj = o.getString("cnpj"), razaoSocial = o.getString("razaoSocial"),
         endereco = o.getString("endereco"), categoriaPadraoId = o.longOuNull("categoriaPadraoId"),
+        metodoPagamentoPadraoId = o.longOuNull("metodoPagamentoPadraoId"), // ausente antes da versão 3
     )
 
     private fun lancamento(o: JSONObject) = Lancamento(

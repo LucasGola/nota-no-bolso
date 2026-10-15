@@ -54,6 +54,32 @@ fun porCategoria(
     }.sortedWith(compareByDescending<FatiaCategoria> { it.totalCentavos }.thenBy { it.nome })
 }
 
+data class FatiaMetodo(
+    /** null = lançamentos sem método. */
+    val metodoId: Long?,
+    val nome: String,
+    val totalCentavos: Long,
+    val fracao: Double,
+)
+
+/** Total por método de pagamento para um tipo, do maior para o menor; "Sem método" agrupa os demais. */
+fun porMetodo(
+    lista: List<LancamentoComCategoria>,
+    metodos: Map<Long, String>,
+    tipo: TipoLancamento = TipoLancamento.SAIDA,
+): List<FatiaMetodo> {
+    val doTipo = lista.filter { it.lancamento.tipo == tipo }
+    val total = doTipo.sumOf { it.lancamento.valorCentavos }
+    if (total == 0L) return emptyList()
+    return doTipo.groupBy { it.lancamento.metodoPagamentoId }
+        .map { (id, itens) ->
+            val soma = itens.sumOf { it.lancamento.valorCentavos }
+            FatiaMetodo(id, id?.let(metodos::get) ?: "Sem método", soma, soma.toDouble() / total)
+        }
+        // "Sem método" vai sempre por último, para não roubar o destaque do maior método real.
+        .sortedWith(compareBy<FatiaMetodo> { it.metodoId == null }.thenByDescending { it.totalCentavos }.thenBy { it.nome })
+}
+
 /** Saídas por estabelecimento (só lançamentos vinculados a um), maiores primeiro. */
 fun topEstabelecimentos(
     lista: List<LancamentoComCategoria>,

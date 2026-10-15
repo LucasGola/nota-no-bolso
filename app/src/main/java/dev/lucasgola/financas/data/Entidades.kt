@@ -50,11 +50,17 @@ data class MetodoPagamento(
 
 @Entity(
     tableName = "estabelecimento",
-    indices = [Index(value = ["cnpj"], unique = true), Index("categoriaPadraoId")],
-    foreignKeys = [ForeignKey(
-        entity = Categoria::class, parentColumns = ["id"], childColumns = ["categoriaPadraoId"],
-        onDelete = ForeignKey.SET_NULL,
-    )],
+    indices = [Index(value = ["cnpj"], unique = true), Index("categoriaPadraoId"), Index("metodoPagamentoPadraoId")],
+    foreignKeys = [
+        ForeignKey(
+            entity = Categoria::class, parentColumns = ["id"], childColumns = ["categoriaPadraoId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+        ForeignKey(
+            entity = MetodoPagamento::class, parentColumns = ["id"], childColumns = ["metodoPagamentoPadraoId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
 )
 data class Estabelecimento(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -63,6 +69,8 @@ data class Estabelecimento(
     val endereco: String,
     /** Última categoria usada para este CNPJ; pré-preenche a próxima importação. */
     val categoriaPadraoId: Long? = null,
+    /** Último método de pagamento usado neste CNPJ; pré-preenche a próxima importação. */
+    val metodoPagamentoPadraoId: Long? = null,
 )
 
 @Entity(

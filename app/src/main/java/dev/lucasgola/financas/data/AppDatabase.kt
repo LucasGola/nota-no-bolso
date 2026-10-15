@@ -25,7 +25,7 @@ class Conversores {
         Categoria::class, Estabelecimento::class, Lancamento::class, NotaFiscal::class, ItemNota::class,
         MetodoPagamento::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Conversores::class)
@@ -43,7 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun criar(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NOME_ARQUIVO)
                 .addCallback(SementeCategorias)
-                .addMigrations(Migracoes.DE_1_PARA_2)
+                .addMigrations(Migracoes.DE_1_PARA_2, Migracoes.DE_2_PARA_3)
                 .build()
     }
 }
@@ -87,5 +87,17 @@ object Migracoes {
 
     val DE_1_PARA_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) = SQL_1_PARA_2.forEach(db::execSQL)
+    }
+
+    /** v3: o estabelecimento lembra o último método de pagamento usado. */
+    val SQL_2_PARA_3 = listOf(
+        "ALTER TABLE `estabelecimento` ADD COLUMN `metodoPagamentoPadraoId` INTEGER " +
+            "REFERENCES `metodo_pagamento`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS `index_estabelecimento_metodoPagamentoPadraoId` " +
+            "ON `estabelecimento` (`metodoPagamentoPadraoId`)",
+    )
+
+    val DE_2_PARA_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) = SQL_2_PARA_3.forEach(db::execSQL)
     }
 }
