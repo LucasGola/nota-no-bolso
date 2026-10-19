@@ -9,9 +9,20 @@ import java.time.Instant
 
 enum class TipoLancamento { ENTRADA, SAIDA }
 
-enum class TipoCategoria { ENTRADA, SAIDA, AMBOS;
+enum class TipoCategoria {
+    ENTRADA, SAIDA, AMBOS,
 
+    /**
+     * Só para classificar itens de nota (ex.: Carne, Limpeza). Não aparece nos lançamentos:
+     * a compra continua numa categoria de saída e só a parte do item vai para esta.
+     */
+    ITEM;
+
+    /** Pode ser a categoria de um lançamento desse tipo. Categoria de item nunca é. */
     fun aceita(tipo: TipoLancamento): Boolean = this == AMBOS || name == tipo.name
+
+    /** Pode classificar um item de nota fiscal (que é sempre uma saída). */
+    val serveParaItem: Boolean get() = this == ITEM || aceita(TipoLancamento.SAIDA)
 }
 
 enum class OrigemLancamento { MANUAL, NFCE }

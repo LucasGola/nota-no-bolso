@@ -53,6 +53,7 @@ import dev.lucasgola.financas.data.LancamentoDao
 import dev.lucasgola.financas.data.NotaDao
 import dev.lucasgola.financas.data.NotaFiscal
 import dev.lucasgola.financas.data.OrigemLancamento
+import dev.lucasgola.financas.data.TipoCategoria
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.ui.comum.CampoData
 import dev.lucasgola.financas.ui.comum.CampoValor
@@ -328,7 +329,7 @@ fun LancamentoFormScreen(db: AppDatabase, lancamentoId: Long?, onFechar: () -> U
     classificando?.let { item ->
         DialogoCategoriaItem(
             item = item,
-            categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == item.categoriaId },
+            categorias = categorias.filter { (it.ativa && it.tipo.serveParaItem) || it.id == item.categoriaId },
             categoriaDaNota = categorias.firstOrNull { it.id == form.categoriaId }?.nome,
             onEscolher = { id -> classificando = null; vm.classificarItem(item, id) },
             onCancelar = { classificando = null },
@@ -418,14 +419,32 @@ private fun DialogoCategoriaItem(
                     "Mesma da nota" + (categoriaDaNota?.let { " ($it)" } ?: ""),
                     selecionada = item.categoriaId == null,
                 ) { onEscolher(null) }
-                categorias.forEach { c ->
-                    OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) }
-                }
+                // Primeiro as categorias feitas para itens; depois as de gasto, que também podem ser usadas.
+                val (deItem, deGasto) = categorias.partition { it.tipo == TipoCategoria.ITEM }
+                if (deItem.isNotEmpty()) TituloGrupo("Categorias de itens")
+                deItem.forEach { c -> OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) } }
+                if (deGasto.isNotEmpty()) TituloGrupo("Categorias de gasto")
+                deGasto.forEach { c -> OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) } }
+                if (deItem.isEmpty()) Text(
+                    "Dica: em Cadastros › Categorias, crie categorias do tipo \"Só itens de nota\" (ex.: Carne, Limpeza). " +
+                        "Elas aparecem aqui e não poluem a lista de categorias dos lançamentos.",
+                    Modifier.padding(top = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
         confirmButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } },
     )
 }
+
+@Composable
+private fun TituloGrupo(texto: String) = Text(
+    texto,
+    Modifier.padding(top = 12.dp, bottom = 4.dp),
+    style = MaterialTheme.typography.labelLarge,
+    color = MaterialTheme.colorScheme.primary,
+)
 
 @Composable
 private fun OpcaoCategoria(nome: String, selecionada: Boolean, onClick: () -> Unit) {

@@ -180,6 +180,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - O gráfico "por categoria" mostra as partes. Com filtro de categoria, a nota aparece se tiver item naquela categoria, e o extrato, os gráficos e o PDF contam só a parte dessa categoria. A linha do extrato mostra "R$ 40,00 de R$ 300,00".
 - O CSV com itens ganhou a coluna "Categoria do item".
 - Sem mudança no banco: a coluna `item_nota.categoriaId` existia desde o schema v1.
+- **Categorias só de itens (v1.4):** tipo novo "Só itens de nota" (`TipoCategoria.ITEM`), por exemplo Carne ou Limpeza. Aparecem só na classificação de itens (primeiro as de item, depois as de gasto) e nunca nos seletores de lançamento, importação e pendentes. Nos gráficos, no filtro e no PDF funcionam como qualquer categoria, via rateio. Uma categoria já usada em lançamentos, ou sugerida para alguma loja, não pode virar "só itens". O tipo é gravado como texto, então não houve mudança de schema; o backup passou à versão 4 para que versões antigas do app recusem o arquivo em vez de falhar com um tipo desconhecido.
 
 ### Métodos de pagamento (v1.2)
 - Cadastro em *Cadastros › Pagamento*: só nome e descrição opcional (ex.: "VR", "Nubank crédito"). Nenhum dado de cartão ou conta.

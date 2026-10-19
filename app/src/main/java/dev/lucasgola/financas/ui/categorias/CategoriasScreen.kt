@@ -72,6 +72,11 @@ class CategoriasViewModel(private val dao: CategoriaDao) : ViewModel() {
     val mensagem = MutableStateFlow<String?>(null)
 
     fun salvar(c: Categoria) = viewModelScope.launch {
+        // Uma categoria de lançamento só vira "só itens" se nenhum lançamento nem loja depender dela.
+        if (c.id != 0L && c.tipo == TipoCategoria.ITEM && (dao.contarLancamentos(c.id) > 0 || dao.contarComoPadrao(c.id) > 0)) {
+            mensagem.value = "\"${c.nome}\" já é usada em lançamentos. Crie uma categoria nova só para itens."
+            return@launch
+        }
         if (c.id == 0L) dao.inserir(c) else dao.atualizar(c)
     }
 
@@ -146,6 +151,7 @@ private fun TipoCategoria.rotulo() = when (this) {
     TipoCategoria.ENTRADA -> "Entrada"
     TipoCategoria.SAIDA -> "Saída"
     TipoCategoria.AMBOS -> "Entrada e saída"
+    TipoCategoria.ITEM -> "Só itens de nota"
 }
 
 @OptIn(ExperimentalLayoutApi::class)

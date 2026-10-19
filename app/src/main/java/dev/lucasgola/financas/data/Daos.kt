@@ -49,6 +49,10 @@ interface CategoriaDao {
 
     @Query("SELECT COUNT(*) FROM lancamento WHERE categoriaId = :id")
     suspend fun contarLancamentos(id: Long): Int
+
+    /** Quantos estabelecimentos sugerem esta categoria na próxima importação. */
+    @Query("SELECT COUNT(*) FROM estabelecimento WHERE categoriaPadraoId = :id")
+    suspend fun contarComoPadrao(id: Long): Int
 }
 
 data class LancamentoComCategoria(

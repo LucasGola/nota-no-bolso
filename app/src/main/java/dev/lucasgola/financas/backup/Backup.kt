@@ -37,10 +37,11 @@ object BackupJson {
     const val MIME = "application/json"
     private const val FORMATO = "financas-backup"
     /**
-     * 2: métodos de pagamento. 3: método padrão do estabelecimento.
+     * 2: métodos de pagamento. 3: método padrão do estabelecimento. 4: categoria do tipo ITEM
+     * (versões antigas do app não a conhecem, então recusam o arquivo em vez de falhar no meio).
      * Backups antigos continuam sendo lidos: o que não existia na versão deles fica vazio.
      */
-    const val VERSAO = 3
+    const val VERSAO = 4
 
     fun gerar(b: Backup): String = JSONObject()
         .put("formato", FORMATO)

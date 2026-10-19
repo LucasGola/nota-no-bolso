@@ -27,6 +27,7 @@ class BackupJsonTest {
         categorias = listOf(
             Categoria(1, "Alimentação fora", 0xFFEF6C00, TipoCategoria.SAIDA),
             Categoria(7, "Salário", 0xFF00897B, TipoCategoria.ENTRADA, ativa = false),
+            Categoria(9, "Carne", 0xFFC62828, TipoCategoria.ITEM),
         ),
         estabelecimentos = listOf(Estabelecimento(3, "58891504001796", "Horizonte \"Restaurantes\" S.A.", "Rua X, 1\nSão Paulo", 1, metodoPagamentoPadraoId = 1)),
         lancamentos = listOf(
