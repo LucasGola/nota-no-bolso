@@ -13,7 +13,8 @@ import java.time.YearMonth
 // Agregações puras para os gráficos (sem Android, testáveis na JVM).
 
 data class FatiaCategoria(
-    val categoriaId: Long,
+    /** null = "Sem categoria" (só no gráfico de itens). */
+    val categoriaId: Long?,
     val nome: String,
     val cor: Long,
     val totalCentavos: Long,
@@ -56,8 +57,9 @@ fun porCategoria(
 }
 
 /**
- * Gastos só nas categorias "só itens" (ex.: Carne, Limpeza), a partir das partes repartidas das notas.
- * Com filtro de categoria, só as categorias de item que estão no filtro. Vazio quando nada foi classificado.
+ * Gastos por categoria "só itens" (ex.: Carne, Limpeza), nas notas com itens. "Sem categoria" (id null)
+ * junta os itens não classificados e fica sempre por último. Com filtro em categorias de item, só elas
+ * aparecem (sem o "Sem categoria"). Vazio quando não há categoria de item cadastrada.
  */
 fun porCategoriaDeItem(
     lista: List<LancamentoComCategoria>,
@@ -66,10 +68,20 @@ fun porCategoriaDeItem(
     filtroCategorias: Set<Long> = emptySet(),
 ): List<FatiaCategoria> {
     val deItem = categorias.values.filter { it.tipo == TipoCategoria.ITEM }.map { it.id }.toSet()
-    val alvo = if (filtroCategorias.isEmpty()) deItem else deItem intersect filtroCategorias
-    // Conjunto vazio em porCategoria significaria "sem restrição"; aqui significa "nada a mostrar".
-    if (alvo.isEmpty()) return emptyList()
-    return porCategoria(lista, TipoLancamento.SAIDA, rateio, categorias, alvo)
+    if (deItem.isEmpty()) return emptyList()
+    val soEstas = filtroCategorias intersect deItem
+    val totais = LinkedHashMap<Long?, Long>()
+    lista.filter { it.lancamento.tipo == TipoLancamento.SAIDA }.forEach { item ->
+        rateio.partesDeItem(item.lancamento).forEach { (id, valor) ->
+            if (soEstas.isEmpty() || id in soEstas) totais.merge(id, valor, Long::plus)
+        }
+    }
+    val total = totais.values.sum()
+    if (total == 0L) return emptyList()
+    return totais.map { (id, soma) ->
+        val c = id?.let(categorias::get)
+        FatiaCategoria(id, c?.nome ?: "Sem categoria", c?.cor ?: 0, soma, soma.toDouble() / total)
+    }.sortedWith(compareBy<FatiaCategoria> { it.categoriaId == null }.thenByDescending { it.totalCentavos }.thenBy { it.nome })
 }
 
 data class FatiaMetodo(

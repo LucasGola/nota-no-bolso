@@ -57,6 +57,7 @@ import dev.lucasgola.financas.data.Estabelecimento
 import dev.lucasgola.financas.data.MetodoPagamento
 import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Rateio
+import dev.lucasgola.financas.filtro.idsDeItem
 import dev.lucasgola.financas.filtro.comValorNasCategorias
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.export.Exportador
@@ -119,7 +120,9 @@ class ExtratoViewModel(db: AppDatabase, private val filtroGlobal: MutableStateFl
 
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
-    private val rateio = db.notaDao().observarItensRateio().map(::Rateio)
+    private val rateio = combine(db.notaDao().observarItensRateio(), db.categoriaDao().observarTodas()) { itens, cats ->
+        Rateio(itens, cats.idsDeItem())
+    }
 
     val ui: StateFlow<ExtratoUi> = filtroGlobal
         .flatMapLatest { f ->

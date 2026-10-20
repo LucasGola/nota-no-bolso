@@ -102,15 +102,45 @@ class RateioTest {
     }
 
     @Test
-    fun `grafico por categoria de item mostra so as categorias so-itens`() {
-        val comCarneDeItem = categorias + (CARNE to Categoria(CARNE, "Carne", 0, TipoCategoria.ITEM))
-        val r = porCategoriaDeItem(listOf(compra, faxina), rateio, comCarneDeItem)
-        assertEquals(listOf("Carne" to 4000L), r.map { it.nome to it.totalCentavos })
-        assertEquals(1.0, r.single().fracao, 1e-9)
+    // ---- Categorias só de itens: dimensão à parte ----
 
-        // Filtro de categoria sem nenhuma de item, ou nenhuma categoria de item cadastrada: painel vazio.
-        assertEquals(emptyList<Any>(), porCategoriaDeItem(listOf(compra), rateio, comCarneDeItem, setOf(MERCADO)))
-        assertEquals(emptyList<Any>(), porCategoriaDeItem(listOf(compra), rateio, categorias))
+    private val carneDeItem = categorias + (CARNE to Categoria(CARNE, "Carne", 0, TipoCategoria.ITEM))
+    private val rateioComItem = Rateio(
+        listOf(item(CARNE, 4000, lancamento = 1), item(null, 26000, lancamento = 1)),
+        deItem = setOf(CARNE),
+    )
+
+    @Test
+    fun `categoria so de itens nao tira nada da categoria geral`() {
+        assertEquals(mapOf(MERCADO to 30000L), rateioComItem.partes(compra.lancamento))
+        assertEquals(mapOf(CARNE to 4000L, null to 26000L), rateioComItem.partesDeItem(compra.lancamento))
+        assertEquals(emptyMap<Long?, Long>(), rateioComItem.partesDeItem(faxina.lancamento)) // sem itens
+    }
+
+    @Test
+    fun `filtro conta cada item uma vez, mesmo com categoria geral e de item juntas`() {
+        assertEquals(4000L, rateioComItem.valorNasCategorias(compra.lancamento, setOf(CARNE)))
+        assertEquals(30000L, rateioComItem.valorNasCategorias(compra.lancamento, setOf(MERCADO)))
+        assertEquals(30000L, rateioComItem.valorNasCategorias(compra.lancamento, setOf(MERCADO, CARNE)))
+        assertEquals(0L, rateioComItem.valorNasCategorias(compra.lancamento, setOf(LIMPEZA)))
+    }
+
+    @Test
+    fun `grafico geral nao mostra categorias so de itens`() {
+        val r = porCategoria(listOf(compra, faxina), TipoLancamento.SAIDA, rateioComItem, carneDeItem)
+        assertEquals(listOf("Mercado" to 30000L, "Limpeza" to 5000L), r.map { it.nome to it.totalCentavos })
+    }
+
+    @Test
+    fun `grafico de itens tem sem categoria por ultimo`() {
+        val r = porCategoriaDeItem(listOf(compra, faxina), rateioComItem, carneDeItem)
+        assertEquals(listOf("Carne" to 4000L, "Sem categoria" to 26000L), r.map { it.nome to it.totalCentavos })
+        assertEquals(null, r.last().categoriaId)
+        assertEquals(1.0, r.sumOf { it.fracao }, 1e-9)
+
+        // Filtrando por uma categoria de item, só ela aparece; nenhuma categoria de item cadastrada: painel vazio.
+        assertEquals(listOf("Carne"), porCategoriaDeItem(listOf(compra), rateioComItem, carneDeItem, setOf(CARNE)).map { it.nome })
+        assertEquals(emptyList<Any>(), porCategoriaDeItem(listOf(compra), rateioComItem, categorias))
     }
 
     @Test

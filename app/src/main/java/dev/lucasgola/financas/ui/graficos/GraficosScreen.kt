@@ -65,6 +65,7 @@ import dev.lucasgola.financas.filtro.ConsultaLancamentos
 import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.filtro.Periodo
 import dev.lucasgola.financas.filtro.Rateio
+import dev.lucasgola.financas.filtro.idsDeItem
 import dev.lucasgola.financas.filtro.comValorNasCategorias
 import dev.lucasgola.financas.graficos.FatiaCategoria
 import dev.lucasgola.financas.graficos.FatiaEstabelecimento
@@ -129,7 +130,9 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
     fun alterarFiltro(f: (Filtro) -> Filtro) = filtroGlobal.update(f)
 
     /** Divisão das notas com itens classificados em outras categorias. */
-    private val rateio = db.notaDao().observarItensRateio().map(::Rateio)
+    private val rateio = combine(db.notaDao().observarItensRateio(), db.categoriaDao().observarTodas()) { itens, cats ->
+        Rateio(itens, cats.idsDeItem())
+    }
 
     private val doPeriodo = filtroGlobal.flatMapLatest { f ->
         dao.observarFiltrado(ConsultaLancamentos.montar(f, hoje()).paraRoom())
@@ -210,9 +213,9 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
                         BarraHorizontal(
                             rotulo = c.nome,
                             valor = "${formatarMoeda(c.totalCentavos)} · ${percentual(c.fracao)}",
-                            proporcao = c.totalCentavos.toFloat() / ui.categorias.first().totalCentavos,
+                            proporcao = c.totalCentavos.toFloat() / ui.categorias.maxOf { it.totalCentavos },
                             cor = Color(c.cor),
-                            onClick = { detalhar { it.copy(categorias = setOf(c.categoriaId)) } },
+                            onClick = c.categoriaId?.let { id -> { detalhar { it.copy(categorias = setOf(id)) } } },
                         )
                     }
                 }
@@ -222,13 +225,14 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
                         BarraHorizontal(
                             rotulo = c.nome,
                             valor = "${formatarMoeda(c.totalCentavos)} · ${percentual(c.fracao)}",
-                            proporcao = c.totalCentavos.toFloat() / ui.categoriasDeItem.first().totalCentavos,
-                            cor = Color(c.cor),
-                            onClick = { detalhar { it.copy(categorias = setOf(c.categoriaId)) } },
+                            proporcao = c.totalCentavos.toFloat() / ui.categoriasDeItem.maxOf { it.totalCentavos },
+                            // "Sem categoria" em cinza e sem toque: não há filtro para itens não classificados.
+                            cor = if (c.categoriaId == null) cores.eixo else Color(c.cor),
+                            onClick = c.categoriaId?.let { id -> { detalhar { it.copy(categorias = setOf(id)) } } },
                         )
                     }
                     Text(
-                        "Só os itens classificados em categorias do tipo \"só itens\"; o % é sobre o total desses itens.",
+                        "Itens das notas fiscais. \"Sem categoria\" são os itens ainda não classificados numa categoria só de itens.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

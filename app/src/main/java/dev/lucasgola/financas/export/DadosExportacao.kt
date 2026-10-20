@@ -11,6 +11,7 @@ import dev.lucasgola.financas.filtro.Filtro
 import dev.lucasgola.financas.filtro.ItemRateio
 import dev.lucasgola.financas.filtro.Rateio
 import dev.lucasgola.financas.filtro.descreverFiltro
+import dev.lucasgola.financas.filtro.idsDeItem
 import java.time.LocalDate
 
 /** Um lançamento pronto para exportar, com o que vem de outras tabelas já resolvido. */
@@ -33,7 +34,10 @@ data class DadosExportacao(
     val metodos: Map<Long, MetodoPagamento> = emptyMap(),
 ) {
     val rateio: Rateio
-        get() = Rateio(lancamentos.flatMap { e -> e.itens.map { it.paraRateio(e.dados.lancamento.id) } })
+        get() = Rateio(
+            lancamentos.flatMap { e -> e.itens.map { it.paraRateio(e.dados.lancamento.id) } },
+            categorias.values.idsDeItem(),
+        )
 }
 
 private fun ItemNota.paraRateio(lancamentoId: Long) = ItemRateio(lancamentoId, categoriaId, valorTotalCentavos - descontoCentavos)

@@ -15,10 +15,7 @@ private const val SQL_ITENS_RATEIO = """
     SELECT n.lancamentoId AS lancamentoId, i.categoriaId AS categoriaId,
            i.valorTotalCentavos - i.descontoCentavos AS valorCentavos
     FROM item_nota i JOIN nota_fiscal n ON n.id = i.notaId
-    WHERE n.lancamentoId IN (
-        SELECT n2.lancamentoId FROM nota_fiscal n2 JOIN item_nota i2 ON i2.notaId = n2.id
-        WHERE i2.categoriaId IS NOT NULL
-    )
+    WHERE n.lancamentoId IS NOT NULL
 """
 
 @Dao
@@ -170,7 +167,7 @@ interface NotaDao {
     @Query("UPDATE item_nota SET categoriaId = :categoriaId WHERE id = :itemId")
     suspend fun classificarItem(itemId: Long, categoriaId: Long?)
 
-    /** Todos os itens das notas que têm ao menos um item classificado (são as únicas que precisam de rateio). */
+    /** Itens de todas as notas com lançamento: base da divisão por categoria e do "sem categoria" dos itens. */
     @Query(SQL_ITENS_RATEIO)
     fun observarItensRateio(): Flow<List<ItemRateio>>
 
