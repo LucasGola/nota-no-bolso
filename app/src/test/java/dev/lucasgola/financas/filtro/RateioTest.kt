@@ -101,7 +101,6 @@ class RateioTest {
         assertEquals(listOf("Carne" to 4000L), soCarne.map { it.nome to it.totalCentavos })
     }
 
-    @Test
     // ---- Categorias só de itens: dimensão à parte ----
 
     private val carneDeItem = categorias + (CARNE to Categoria(CARNE, "Carne", 0, TipoCategoria.ITEM))
