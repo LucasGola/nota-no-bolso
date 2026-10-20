@@ -6,6 +6,7 @@ import dev.lucasgola.financas.data.LancamentoComCategoria
 import dev.lucasgola.financas.data.TipoCategoria
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.graficos.porCategoria
+import dev.lucasgola.financas.graficos.porCategoriaDeItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -98,6 +99,18 @@ class RateioTest {
 
         val soCarne = porCategoria(listOf(compra, faxina), TipoLancamento.SAIDA, rateio, categorias, restringirA = setOf(CARNE))
         assertEquals(listOf("Carne" to 4000L), soCarne.map { it.nome to it.totalCentavos })
+    }
+
+    @Test
+    fun `grafico por categoria de item mostra so as categorias so-itens`() {
+        val comCarneDeItem = categorias + (CARNE to Categoria(CARNE, "Carne", 0, TipoCategoria.ITEM))
+        val r = porCategoriaDeItem(listOf(compra, faxina), rateio, comCarneDeItem)
+        assertEquals(listOf("Carne" to 4000L), r.map { it.nome to it.totalCentavos })
+        assertEquals(1.0, r.single().fracao, 1e-9)
+
+        // Filtro de categoria sem nenhuma de item, ou nenhuma categoria de item cadastrada: painel vazio.
+        assertEquals(emptyList<Any>(), porCategoriaDeItem(listOf(compra), rateio, comCarneDeItem, setOf(MERCADO)))
+        assertEquals(emptyList<Any>(), porCategoriaDeItem(listOf(compra), rateio, categorias))
     }
 
     @Test

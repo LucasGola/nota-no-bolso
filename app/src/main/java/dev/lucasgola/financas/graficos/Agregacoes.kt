@@ -2,6 +2,7 @@ package dev.lucasgola.financas.graficos
 
 import dev.lucasgola.financas.data.Categoria
 import dev.lucasgola.financas.data.LancamentoComCategoria
+import dev.lucasgola.financas.data.TipoCategoria
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.filtro.Periodo
 import dev.lucasgola.financas.filtro.Rateio
@@ -52,6 +53,23 @@ fun porCategoria(
         val (nome, cor) = categorias[id]?.let { it.nome to it.cor } ?: nomeCor[id] ?: ("Categoria" to 0xFF757575)
         FatiaCategoria(id, nome, cor, soma, soma.toDouble() / total)
     }.sortedWith(compareByDescending<FatiaCategoria> { it.totalCentavos }.thenBy { it.nome })
+}
+
+/**
+ * Gastos só nas categorias "só itens" (ex.: Carne, Limpeza), a partir das partes repartidas das notas.
+ * Com filtro de categoria, só as categorias de item que estão no filtro. Vazio quando nada foi classificado.
+ */
+fun porCategoriaDeItem(
+    lista: List<LancamentoComCategoria>,
+    rateio: Rateio,
+    categorias: Map<Long, Categoria>,
+    filtroCategorias: Set<Long> = emptySet(),
+): List<FatiaCategoria> {
+    val deItem = categorias.values.filter { it.tipo == TipoCategoria.ITEM }.map { it.id }.toSet()
+    val alvo = if (filtroCategorias.isEmpty()) deItem else deItem intersect filtroCategorias
+    // Conjunto vazio em porCategoria significaria "sem restrição"; aqui significa "nada a mostrar".
+    if (alvo.isEmpty()) return emptyList()
+    return porCategoria(lista, TipoLancamento.SAIDA, rateio, categorias, alvo)
 }
 
 data class FatiaMetodo(

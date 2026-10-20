@@ -70,6 +70,7 @@ import dev.lucasgola.financas.graficos.FatiaCategoria
 import dev.lucasgola.financas.graficos.FatiaEstabelecimento
 import dev.lucasgola.financas.graficos.FatiaMetodo
 import dev.lucasgola.financas.graficos.porMetodo
+import dev.lucasgola.financas.graficos.porCategoriaDeItem
 import dev.lucasgola.financas.graficos.ResumoMes
 import dev.lucasgola.financas.graficos.evolucaoMensal
 import dev.lucasgola.financas.graficos.mesesDaEvolucao
@@ -103,6 +104,8 @@ data class GraficosUi(
     val tipoCategorias: TipoLancamento = TipoLancamento.SAIDA,
     val totalCentavos: Long = 0,
     val categorias: List<FatiaCategoria> = emptyList(),
+    /** Só as categorias "só itens"; vazio quando nenhum item foi classificado nelas. */
+    val categoriasDeItem: List<FatiaCategoria> = emptyList(),
     val estabelecimentos: List<FatiaEstabelecimento> = emptyList(),
     /** Vazio quando não há método cadastrado: o painel nem aparece. */
     val metodos: List<FatiaMetodo> = emptyList(),
@@ -161,6 +164,8 @@ class GraficosViewModel(db: AppDatabase, private val filtroGlobal: MutableStateF
             tipoCategorias = tipo,
             totalCentavos = atribuida.filter { it.lancamento.tipo == tipo }.sumOf { it.lancamento.valorCentavos },
             categorias = porCategoria(lista, tipo, r, cats, f.categorias),
+            // Itens de nota são sempre saídas: com filtro só de entradas, o painel não aparece.
+            categoriasDeItem = if (tipo == TipoLancamento.SAIDA) porCategoriaDeItem(lista, r, cats, f.categorias) else emptyList(),
             estabelecimentos = topEstabelecimentos(atribuida, ests.associate { it.id to it.razaoSocial }),
             metodos = if (mets.isEmpty()) emptyList() else porMetodo(atribuida, mets, tipo),
             evolucao = evo,
@@ -210,6 +215,23 @@ fun GraficosScreen(db: AppDatabase, filtro: MutableStateFlow<Filtro>, onVerNoExt
                             onClick = { detalhar { it.copy(categorias = setOf(c.categoriaId)) } },
                         )
                     }
+                }
+
+                if (ui.categoriasDeItem.isNotEmpty()) Painel("Gastos por categoria de item") {
+                    ui.categoriasDeItem.forEach { c ->
+                        BarraHorizontal(
+                            rotulo = c.nome,
+                            valor = "${formatarMoeda(c.totalCentavos)} · ${percentual(c.fracao)}",
+                            proporcao = c.totalCentavos.toFloat() / ui.categoriasDeItem.first().totalCentavos,
+                            cor = Color(c.cor),
+                            onClick = { detalhar { it.copy(categorias = setOf(c.categoriaId)) } },
+                        )
+                    }
+                    Text(
+                        "Só os itens classificados em categorias do tipo \"só itens\"; o % é sobre o total desses itens.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 if (ui.metodos.isNotEmpty()) Painel(

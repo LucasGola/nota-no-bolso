@@ -59,6 +59,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.saveable.rememberSaveable
 
 private val PALETA = listOf(
     0xFF2E7D32, 0xFF00897B, 0xFF1565C0, 0xFF3949AB, 0xFF8E24AA, 0xFFC2185B,
@@ -98,6 +104,9 @@ fun CategoriasScreen(db: AppDatabase, topo: @Composable () -> Unit) {
     val mensagem by vm.mensagem.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var editando by remember { mutableStateOf<Categoria?>(null) }
+    var filtroTipo by rememberSaveable { mutableStateOf(FiltroTipoCategoria.TODAS) }
+    var busca by rememberSaveable { mutableStateOf("") }
+    val visiveis = remember(categorias, filtroTipo, busca) { filtrarCategorias(categorias, filtroTipo, busca) }
 
     LaunchedEffect(mensagem) {
         mensagem?.let {
@@ -111,12 +120,43 @@ fun CategoriasScreen(db: AppDatabase, topo: @Composable () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                editando = Categoria(nome = "", cor = PALETA.first(), tipo = TipoCategoria.SAIDA)
+                editando = Categoria(nome = "", cor = PALETA.first(), tipo = filtroTipo.tipoParaNova)
             }) { Icon(Icons.Default.Add, "Nova categoria") }
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            items(categorias, key = { it.id }) { c ->
+            item {
+                OutlinedTextField(
+                    value = busca,
+                    onValueChange = { busca = it },
+                    placeholder = { Text("Buscar categoria") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (busca.isNotEmpty()) IconButton(onClick = { busca = "" }) { Icon(Icons.Default.Close, "Limpar busca") }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                )
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(FiltroTipoCategoria.entries) { f ->
+                        FilterChip(selected = filtroTipo == f, onClick = { filtroTipo = f }, label = { Text(f.rotulo) })
+                    }
+                }
+            }
+            if (visiveis.isEmpty() && categorias.isNotEmpty()) item {
+                Text(
+                    "Nenhuma categoria encontrada.",
+                    Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(visiveis, key = { it.id }) { c ->
                 Row(
                     Modifier.fillMaxWidth().clickable { editando = c }.padding(16.dp).alpha(if (c.ativa) 1f else 0.5f),
                     verticalAlignment = Alignment.CenterVertically,

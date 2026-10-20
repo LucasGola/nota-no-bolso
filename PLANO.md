@@ -181,6 +181,7 @@ Um mesmo objeto `Filtro` é usado em **Extrato, Gráficos e Exportação** (expo
 - O CSV com itens ganhou a coluna "Categoria do item".
 - Sem mudança no banco: a coluna `item_nota.categoriaId` existia desde o schema v1.
 - **Categorias só de itens (v1.4):** tipo novo "Só itens de nota" (`TipoCategoria.ITEM`), por exemplo Carne ou Limpeza. Aparecem só na classificação de itens (primeiro as de item, depois as de gasto) e nunca nos seletores de lançamento, importação e pendentes. Nos gráficos, no filtro e no PDF funcionam como qualquer categoria, via rateio. Uma categoria já usada em lançamentos, ou sugerida para alguma loja, não pode virar "só itens". O tipo é gravado como texto, então não houve mudança de schema; o backup passou à versão 4 para que versões antigas do app recusem o arquivo em vez de falhar com um tipo desconhecido.
+- **v1.5:** a lista de categorias ganhou busca (lupa; ignora acentos e maiúsculas) e filtro por tipo: Todas, Entrada, Saída, Só itens. "Entrada" e "Saída" incluem as categorias "entrada e saída". Uma categoria nova nasce no tipo do filtro ativo. Nos gráficos, o painel "Gastos por categoria de item" mostra só as categorias "só itens" (o % é sobre o total desses itens), com drill-down para o extrato. O painel some quando nada foi classificado ou quando o filtro é só de entradas.
 
 ### Métodos de pagamento (v1.2)
 - Cadastro em *Cadastros › Pagamento*: só nome e descrição opcional (ex.: "VR", "Nubank crédito"). Nenhum dado de cartão ou conta.
