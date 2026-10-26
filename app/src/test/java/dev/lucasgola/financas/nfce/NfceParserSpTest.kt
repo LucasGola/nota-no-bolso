@@ -48,7 +48,7 @@ class NfceParserSpTest {
     }
 
     @Test
-    fun `pagina sem a nota pede segunda tentativa no navegador`() {
+    fun `pagina sem a nota pede a segunda tentativa`() {
         // Ex.: resposta do firewall da SEFAZ ("Request Rejected") ou página de verificação em JavaScript.
         val bloqueio = "<html><head><title>Request Rejected</title></head><body>The requested URL was rejected.</body></html>"
         val ex = assertThrows(NfceParseException::class.java) { NfceParserSp.parse(bloqueio) }
@@ -57,12 +57,6 @@ class NfceParserSpTest {
         assertTrue(ex.message!!.contains("SEFAZ não devolveu a nota"))
     }
 
-    @Test
-    fun `reconhece quando a pagina ja tem o resultado da consulta`() {
-        assertTrue(NfceParserSp.temResultado(fixture("sp_restaurante_3itens.html")))
-        assertTrue(NfceParserSp.temResultado("<html><body><input id='hdfNotaCancelada'></body></html>"))
-        assertFalse(NfceParserSp.temResultado("<html><head><script src='/TSPD/?type=18'></script></head><body></body></html>"))
-    }
 
     @Test
     fun `nota cancelada e rejeitada`() {

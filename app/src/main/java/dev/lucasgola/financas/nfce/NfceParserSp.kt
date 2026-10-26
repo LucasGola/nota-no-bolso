@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * [permanente] = tentar de novo não adianta (nota cancelada/denegada).
- * [semNota] = a página nem trouxe a nota (bloqueio anti-robô da SEFAZ, erro do portal): vale tentar num navegador.
+ * [semNota] = a página nem trouxe a nota (bloqueio anti-robô da SEFAZ, erro do portal): vale a segunda tentativa pela página salva no navegador.
  */
 class NfceParseException(mensagem: String, val permanente: Boolean = false, val semNota: Boolean = false) : Exception(mensagem)
 
@@ -23,12 +23,6 @@ object NfceParserSp {
     private val formatoEmissao = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
     fun parse(html: String): NotaImportada = parse(Jsoup.parse(html))
-
-    /** A página já é o resultado da consulta (nota, ou aviso de cancelada/denegada), e não uma verificação intermediária. */
-    fun temResultado(html: String): Boolean {
-        val doc = Jsoup.parse(html)
-        return listOf("tabResult", "hdfNotaCancelada", "hdfNotaDenegada").any { doc.getElementById(it) != null }
-    }
 
     fun parse(doc: Document): NotaImportada {
         if (doc.getElementById("hdfNotaCancelada") != null) throw NfceParseException("Esta nota foi cancelada pelo emitente.", permanente = true)

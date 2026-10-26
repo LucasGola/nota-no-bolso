@@ -27,9 +27,10 @@ sealed interface Preparo {
     data class Falhou(val mensagem: String) : Preparo
     /**
      * A SEFAZ não devolveu a nota à consulta direta (ex.: bloqueio anti-robô). A nota já foi salva como
-     * PENDENTE; a segunda tentativa abre a [url] num navegador e entrega a página a [prepararDaPagina].
+     * PENDENTE; a segunda tentativa é o usuário abrir a [url] no navegador, salvar a página e entregá-la a
+     * [prepararDaPagina]. [erro] vem de uma tentativa anterior com um arquivo que não serviu.
      */
-    data class TentarNoNavegador(val url: String) : Preparo
+    data class PrecisaDaPagina(val url: String, val erro: String? = null) : Preparo
 }
 
 data class ResultadoReprocesso(val importadas: Int, val falhas: Int)
@@ -62,32 +63,28 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         } catch (e: NfceParseException) {
             if (e.permanente) return Preparo.Invalida(e.message.orEmpty())
             val falhou = registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota: ${e.message}")
-            if (e.semNota) Preparo.TentarNoNavegador(conteudoQr.trim()) else falhou
+            if (e.semNota) Preparo.PrecisaDaPagina(conteudoQr.trim()) else falhou
         } catch (e: IOException) {
             registrarPendente(chave, conteudoQr.trim(), existente, "Falha ao consultar a SEFAZ: ${e.message ?: "sem conexão"}")
         }
     }
 
-    /** Segunda tentativa: lê a página que o navegador carregou. A nota já está pendente desde [preparar]. */
-    suspend fun prepararDaPagina(conteudoQr: String, html: String): Preparo {
+    /**
+     * Segunda tentativa: lê a página da consulta salva pelo navegador (.mhtml ou .html). A nota já está
+     * pendente desde [preparar]; um arquivo que não serve devolve [Preparo.PrecisaDaPagina] com o erro.
+     */
+    suspend fun prepararDaPagina(conteudoQr: String, arquivo: ByteArray): Preparo {
         val chave = ChaveAcesso.doQrCode(conteudoQr)
             ?: return Preparo.Invalida("Este QR Code não é de uma NFC-e.")
-        val existente = notaDao.buscarPorChave(chave.valor)
         return try {
-            val nota = NfceParserSp.parse(html)
-            if (nota.chave != chave) throw NfceParseException("A página aberta é de outra nota")
+            val nota = NfceParserSp.parse(PaginaSalva.html(arquivo))
+            if (nota.chave != chave) throw NfceParseException("a página salva é de outra nota")
             pronta(nota, conteudoQr)
         } catch (e: NfceParseException) {
             if (e.permanente) return Preparo.Invalida(e.message.orEmpty())
-            registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota pelo navegador: ${e.message}")
+            val motivo = if (e.semNota) "o arquivo não tem a nota (a página tinha carregado?)" else e.message
+            Preparo.PrecisaDaPagina(conteudoQr.trim(), "Não foi possível ler o arquivo: $motivo")
         }
-    }
-
-    /** O usuário desistiu da segunda tentativa: a nota continua pendente. */
-    suspend fun desistirDoNavegador(conteudoQr: String): Preparo {
-        val chave = ChaveAcesso.doQrCode(conteudoQr)
-            ?: return Preparo.Invalida("Este QR Code não é de uma NFC-e.")
-        return registrarPendente(chave, conteudoQr.trim(), notaDao.buscarPorChave(chave.valor), "A SEFAZ não devolveu a nota, nem pelo navegador")
     }
 
     private suspend fun pronta(nota: NotaImportada, conteudoQr: String): Preparo.Pronta {

@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -57,6 +58,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import android.content.ContentResolver
+import android.net.Uri
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import dev.lucasgola.financas.data.MetodoPagamento
@@ -68,8 +73,8 @@ sealed interface EstadoImportacao {
     data class Invalida(val mensagem: String) : EstadoImportacao
     data class JaImportada(val lancamentoId: Long) : EstadoImportacao
     data class Falhou(val mensagem: String) : EstadoImportacao
-    /** Segunda tentativa automática, pelo navegador embutido. */
-    data class Navegador(val url: String) : EstadoImportacao
+    /** Segunda tentativa: o usuário salva a página da nota no navegador e a entrega ao app. */
+    data class PaginaSalva(val url: String, val erro: String? = null) : EstadoImportacao
     data class Revisao(
         val nota: NotaImportada,
         val urlQr: String,
@@ -102,22 +107,26 @@ class ImportarNotaViewModel(
         viewModelScope.launch { _estado.value = paraEstado(repo.preparar(conteudoQr)) }
     }
 
-    /** O navegador carregou a página com o resultado da consulta. */
-    fun paginaCarregada(html: String) {
+    /** Lê a página da nota salva pelo navegador. */
+    fun paginaSalva(arquivo: Uri, resolver: ContentResolver) {
+        val anterior = _estado.value as? EstadoImportacao.PaginaSalva ?: return
         _estado.value = EstadoImportacao.Consultando
-        viewModelScope.launch { _estado.value = paraEstado(repo.prepararDaPagina(conteudoQr, html)) }
-    }
-
-    fun desistirDoNavegador() {
-        _estado.value = EstadoImportacao.Consultando
-        viewModelScope.launch { _estado.value = paraEstado(repo.desistirDoNavegador(conteudoQr)) }
+        viewModelScope.launch {
+            val bytes = try {
+                withContext(Dispatchers.IO) { resolver.openInputStream(arquivo)?.use { it.readBytes() } }
+            } catch (e: Exception) {
+                null
+            }
+            _estado.value = if (bytes == null) anterior.copy(erro = "Não foi possível abrir o arquivo.")
+            else paraEstado(repo.prepararDaPagina(conteudoQr, bytes))
+        }
     }
 
     private fun paraEstado(p: Preparo): EstadoImportacao = when (p) {
         is Preparo.Invalida -> EstadoImportacao.Invalida(p.mensagem)
         is Preparo.JaImportada -> EstadoImportacao.JaImportada(p.lancamentoId)
         is Preparo.Falhou -> EstadoImportacao.Falhou(p.mensagem)
-        is Preparo.TentarNoNavegador -> EstadoImportacao.Navegador(p.url)
+        is Preparo.PrecisaDaPagina -> EstadoImportacao.PaginaSalva(p.url, p.erro)
         is Preparo.Pronta -> EstadoImportacao.Revisao(
             nota = p.nota,
             urlQr = p.urlQr,
@@ -206,7 +215,10 @@ fun ImportarNotaScreen(
                     Button(onClick = onVerPendentes) { Text("Ver pendentes") }
                     OutlinedButton(onClick = onFechar) { Text("Voltar") }
                 }
-                is EstadoImportacao.Navegador -> NavegadorSefaz(e.url, vm::paginaCarregada, vm::desistirDoNavegador)
+                is EstadoImportacao.PaginaSalva -> {
+                    val resolver = LocalContext.current.contentResolver
+                    PaginaSalvaSefaz(e.url, e.erro, { vm.paginaSalva(it, resolver) }, onFechar)
+                }
                 is EstadoImportacao.Revisao -> Revisao(
                     r = e,
                     categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == e.categoriaId },
