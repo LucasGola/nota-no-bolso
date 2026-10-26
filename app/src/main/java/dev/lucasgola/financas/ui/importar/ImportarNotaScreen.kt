@@ -26,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +46,7 @@ import dev.lucasgola.financas.nfce.NotaImportada
 import dev.lucasgola.financas.nfce.Preparo
 import dev.lucasgola.financas.nfce.dataEmissaoInstant
 import dev.lucasgola.financas.ui.comum.CampoData
+import dev.lucasgola.financas.ui.comum.DialogoCategoriaItem
 import dev.lucasgola.financas.ui.comum.LinhaItem
 import dev.lucasgola.financas.ui.comum.LinhaTotal
 import dev.lucasgola.financas.ui.comum.ListaItensNota
@@ -82,6 +86,8 @@ sealed interface EstadoImportacao {
         val descricao: String,
         val data: LocalDate,
         val metodoPagamentoId: Long? = null,
+        /** Categoria própria de cada item (pela ordem na nota); ausente = a mesma do lançamento. */
+        val categoriasItens: Map<Int, Long> = emptyMap(),
         val salvando: Boolean = false,
         val erro: String? = null,
     ) : EstadoImportacao
@@ -141,6 +147,12 @@ class ImportarNotaViewModel(
         if (it is EstadoImportacao.Revisao) f(it).copy(erro = null) else it
     }
 
+    /** Escolher a própria categoria do lançamento (ou null) é o mesmo que não classificar. */
+    fun classificarItem(ordem: Int, categoriaId: Long?) = alterar { r ->
+        val nova = categoriaId?.takeIf { it != r.categoriaId }
+        r.copy(categoriasItens = if (nova == null) r.categoriasItens - ordem else r.categoriasItens + (ordem to nova))
+    }
+
     fun salvar(onSalvo: () -> Unit) {
         val r = _estado.value as? EstadoImportacao.Revisao ?: return
         val categoriaId = r.categoriaId
@@ -154,7 +166,7 @@ class ImportarNotaViewModel(
             val emissao = r.nota.dataEmissaoInstant
             val dataHora = if (emissao.dataLocal() == r.data) emissao else r.data.meioDia()
             try {
-                repo.confirmar(r.nota, r.urlQr, categoriaId, r.descricao.trim().ifEmpty { r.nota.emitente.razaoSocial }, dataHora, r.metodoPagamentoId)
+                repo.confirmar(r.nota, r.urlQr, categoriaId, r.descricao.trim().ifEmpty { r.nota.emitente.razaoSocial }, dataHora, r.metodoPagamentoId, r.categoriasItens)
                 onSalvo()
             } catch (e: Exception) {
                 _estado.value = r.copy(salvando = false, erro = "Não foi possível salvar: ${e.message}")
@@ -222,8 +234,10 @@ fun ImportarNotaScreen(
                 is EstadoImportacao.Revisao -> Revisao(
                     r = e,
                     categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == e.categoriaId },
+                    todasCategorias = categorias,
                     metodos = metodos.filter { it.ativo },
                     onAlterar = vm::alterar,
+                    onClassificarItem = vm::classificarItem,
                     onSalvar = { vm.salvar(onFechar) },
                 )
             }
@@ -246,11 +260,14 @@ private val fmtEmissao = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 private fun Revisao(
     r: EstadoImportacao.Revisao,
     categorias: List<Categoria>,
+    todasCategorias: List<Categoria>,
     metodos: List<MetodoPagamento>,
     onAlterar: ((EstadoImportacao.Revisao) -> EstadoImportacao.Revisao) -> Unit,
+    onClassificarItem: (ordem: Int, categoriaId: Long?) -> Unit,
     onSalvar: () -> Unit,
 ) {
     val n = r.nota
+    var classificando by remember { mutableStateOf<LinhaItem?>(null) }
     Column(
         Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -301,13 +318,36 @@ private fun Revisao(
 
         HorizontalDivider()
         Text("${n.itens.size} itens", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Toque num item para colocá-lo em outra categoria (opcional). Ex.: a carne da compra do mercado.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         ListaItensNota(
-            n.itens.map { LinhaItem(it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos) },
+            // Antes de salvar os itens não têm id: a ordem na nota faz esse papel.
+            n.itens.map {
+                LinhaItem(
+                    it.descricao, it.codigo, it.quantidade, it.unidade, it.valorUnitario, it.valorTotalCentavos,
+                    id = it.ordem.toLong(), categoriaId = r.categoriasItens[it.ordem],
+                )
+            },
+            nomeCategoria = { id -> todasCategorias.firstOrNull { it.id == id }?.nome },
+            onClicar = { classificando = it },
         )
         HorizontalDivider()
         n.valorBrutoCentavos?.let { LinhaTotal("Subtotal", it) }
         if (n.descontoCentavos > 0) LinhaTotal("Descontos", -n.descontoCentavos)
         LinhaTotal("Total pago", n.valorAPagarCentavos, destaque = true)
         n.pagamentos.forEach { LinhaTotal(it.forma, it.valorCentavos) }
+    }
+
+    classificando?.let { item ->
+        DialogoCategoriaItem(
+            item = item,
+            categorias = todasCategorias.filter { (it.ativa && it.tipo.serveParaItem) || it.id == item.categoriaId },
+            categoriaDaNota = todasCategorias.firstOrNull { it.id == r.categoriaId }?.nome,
+            onEscolher = { id -> classificando = null; onClassificarItem(item.id.toInt(), id) },
+            onCancelar = { classificando = null },
+        )
     }
 }

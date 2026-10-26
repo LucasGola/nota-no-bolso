@@ -48,6 +48,13 @@ class MapeamentoTest {
         assertEquals(5L, itens[0].notaId)
         assertEquals(0, BigDecimal("10.1").compareTo(itens[0].valorUnitario))
         assertEquals(4040L, itens[0].valorTotalCentavos)
+        assertNull(itens[0].categoriaId)
+    }
+
+    @Test
+    fun `itens levam a categoria escolhida na revisao pela ordem`() {
+        val itens = nota.paraItens(notaId = 5, categoriasPorOrdem = mapOf(2 to 7L))
+        assertEquals(listOf(null, 7L, null), itens.map { it.categoriaId })
     }
 
     @Test

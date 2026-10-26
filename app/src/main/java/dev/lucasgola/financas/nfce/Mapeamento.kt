@@ -50,7 +50,8 @@ fun NotaImportada.paraNotaFiscal(urlQr: String, lancamentoId: Long, id: Long = 0
     lancamentoId = lancamentoId,
 )
 
-fun NotaImportada.paraItens(notaId: Long): List<ItemNota> = itens.map {
+/** [categoriasPorOrdem]: categoria própria escolhida na revisão para cada item (pela ordem na nota). */
+fun NotaImportada.paraItens(notaId: Long, categoriasPorOrdem: Map<Int, Long> = emptyMap()): List<ItemNota> = itens.map {
     ItemNota(
         notaId = notaId,
         ordem = it.ordem,
@@ -60,6 +61,7 @@ fun NotaImportada.paraItens(notaId: Long): List<ItemNota> = itens.map {
         unidade = it.unidade,
         valorUnitario = it.valorUnitario,
         valorTotalCentavos = it.valorTotalCentavos,
+        categoriaId = categoriasPorOrdem[it.ordem],
     )
 }
 

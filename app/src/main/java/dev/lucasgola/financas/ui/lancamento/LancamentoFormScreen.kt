@@ -2,12 +2,6 @@ package dev.lucasgola.financas.ui.lancamento
 
 import androidx.compose.foundation.layout.Arrangement
 import dev.lucasgola.financas.util.formatarMoeda
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.Alignment
-import androidx.compose.material3.RadioButton
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,10 +47,10 @@ import dev.lucasgola.financas.data.LancamentoDao
 import dev.lucasgola.financas.data.NotaDao
 import dev.lucasgola.financas.data.NotaFiscal
 import dev.lucasgola.financas.data.OrigemLancamento
-import dev.lucasgola.financas.data.TipoCategoria
 import dev.lucasgola.financas.data.TipoLancamento
 import dev.lucasgola.financas.ui.comum.CampoData
 import dev.lucasgola.financas.ui.comum.CampoValor
+import dev.lucasgola.financas.ui.comum.DialogoCategoriaItem
 import dev.lucasgola.financas.ui.comum.LinhaItem
 import dev.lucasgola.financas.ui.comum.LinhaTotal
 import dev.lucasgola.financas.ui.comum.ListaItensNota
@@ -399,60 +393,5 @@ private fun NotaDoLancamento(v: NotaVinculada, nomeCategoria: (Long) -> String?,
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DialogoCategoriaItem(
-    item: LinhaItem,
-    categorias: List<Categoria>,
-    categoriaDaNota: String?,
-    onEscolher: (Long?) -> Unit,
-    onCancelar: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onCancelar,
-        title = { Text(item.descricao, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                OpcaoCategoria(
-                    "Mesma da nota" + (categoriaDaNota?.let { " ($it)" } ?: ""),
-                    selecionada = item.categoriaId == null,
-                ) { onEscolher(null) }
-                // Primeiro as categorias feitas para itens; depois as de gasto, que também podem ser usadas.
-                val (deItem, deGasto) = categorias.partition { it.tipo == TipoCategoria.ITEM }
-                if (deItem.isNotEmpty()) TituloGrupo("Categorias de itens")
-                deItem.forEach { c -> OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) } }
-                if (deGasto.isNotEmpty()) TituloGrupo("Categorias de gasto")
-                deGasto.forEach { c -> OpcaoCategoria(c.nome, selecionada = item.categoriaId == c.id) { onEscolher(c.id) } }
-                if (deItem.isEmpty()) Text(
-                    "Dica: em Cadastros › Categorias, crie categorias do tipo \"Só itens de nota\" (ex.: Carne, Limpeza). " +
-                        "Elas aparecem aqui e não poluem a lista de categorias dos lançamentos.",
-                    Modifier.padding(top = 8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } },
-    )
-}
-
-@Composable
-private fun TituloGrupo(texto: String) = Text(
-    texto,
-    Modifier.padding(top = 12.dp, bottom = 4.dp),
-    style = MaterialTheme.typography.labelLarge,
-    color = MaterialTheme.colorScheme.primary,
-)
-
-@Composable
-private fun OpcaoCategoria(nome: String, selecionada: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().selectable(selecionada, role = Role.RadioButton, onClick = onClick).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selecionada, onClick = null)
-        Text(nome, Modifier.padding(start = 8.dp))
     }
 }

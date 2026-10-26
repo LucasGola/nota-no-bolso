@@ -98,7 +98,10 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         return Preparo.Falhou(erro)
     }
 
-    /** Grava lançamento + nota + itens e lembra a categoria escolhida para o CNPJ. Retorna o id do lançamento. */
+    /**
+     * Grava lançamento + nota + itens e lembra a categoria escolhida para o CNPJ. Retorna o id do lançamento.
+     * [categoriasItens] (ordem do item → categoria) vem da revisão; a própria categoria do lançamento vale como "sem classificação".
+     */
     suspend fun confirmar(
         nota: NotaImportada,
         urlQr: String,
@@ -106,6 +109,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         descricao: String,
         dataHora: Instant,
         metodoPagamentoId: Long? = null,
+        categoriasItens: Map<Int, Long> = emptyMap(),
     ): Long = db.withTransaction {
         val existente = notaDao.buscarPorChave(nota.chave.valor)
         check(existente == null || existente.status == StatusNota.PENDENTE) { "Nota já importada" }
@@ -125,7 +129,7 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
             notaDao.excluirItens(existente.id)
             existente.id
         }
-        notaDao.inserirItens(nota.paraItens(notaId))
+        notaDao.inserirItens(nota.paraItens(notaId, categoriasItens.filterValues { it != categoriaId }))
         lancamentoId
     }
 
