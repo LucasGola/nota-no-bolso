@@ -1,6 +1,7 @@
 package dev.lucasgola.financas.nfce
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -47,11 +48,20 @@ class NfceParserSpTest {
     }
 
     @Test
-    fun `pagina sem tabela de itens gera erro claro`() {
-        val ex = assertThrows(NfceParseException::class.java) {
-            NfceParserSp.parse("<html><body><div id='erro'>Serviço indisponível</div></body></html>")
-        }
-        assertTrue(ex.message!!.contains("tabela de itens"))
+    fun `pagina sem a nota pede segunda tentativa no navegador`() {
+        // Ex.: resposta do firewall da SEFAZ ("Request Rejected") ou página de verificação em JavaScript.
+        val bloqueio = "<html><head><title>Request Rejected</title></head><body>The requested URL was rejected.</body></html>"
+        val ex = assertThrows(NfceParseException::class.java) { NfceParserSp.parse(bloqueio) }
+        assertTrue(ex.semNota)
+        assertFalse(ex.permanente)
+        assertTrue(ex.message!!.contains("SEFAZ não devolveu a nota"))
+    }
+
+    @Test
+    fun `reconhece quando a pagina ja tem o resultado da consulta`() {
+        assertTrue(NfceParserSp.temResultado(fixture("sp_restaurante_3itens.html")))
+        assertTrue(NfceParserSp.temResultado("<html><body><input id='hdfNotaCancelada'></body></html>"))
+        assertFalse(NfceParserSp.temResultado("<html><head><script src='/TSPD/?type=18'></script></head><body></body></html>"))
     }
 
     @Test

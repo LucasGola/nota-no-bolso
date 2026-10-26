@@ -8,8 +8,11 @@ import org.jsoup.nodes.Element
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-/** [permanente] = tentar de novo não adianta (nota cancelada/denegada). */
-class NfceParseException(mensagem: String, val permanente: Boolean = false) : Exception(mensagem)
+/**
+ * [permanente] = tentar de novo não adianta (nota cancelada/denegada).
+ * [semNota] = a página nem trouxe a nota (bloqueio anti-robô da SEFAZ, erro do portal): vale tentar num navegador.
+ */
+class NfceParseException(mensagem: String, val permanente: Boolean = false, val semNota: Boolean = false) : Exception(mensagem)
 
 /**
  * Parser da página "Consulta Resumida NFC-e" da SEFAZ-SP (ConsultaQRCode.aspx).
@@ -21,12 +24,18 @@ object NfceParserSp {
 
     fun parse(html: String): NotaImportada = parse(Jsoup.parse(html))
 
+    /** A página já é o resultado da consulta (nota, ou aviso de cancelada/denegada), e não uma verificação intermediária. */
+    fun temResultado(html: String): Boolean {
+        val doc = Jsoup.parse(html)
+        return listOf("tabResult", "hdfNotaCancelada", "hdfNotaDenegada").any { doc.getElementById(it) != null }
+    }
+
     fun parse(doc: Document): NotaImportada {
         if (doc.getElementById("hdfNotaCancelada") != null) throw NfceParseException("Esta nota foi cancelada pelo emitente.", permanente = true)
         if (doc.getElementById("hdfNotaDenegada") != null) throw NfceParseException("Esta nota foi denegada pela SEFAZ.", permanente = true)
 
         val tabela = doc.getElementById("tabResult")
-            ?: throw NfceParseException("Página da SEFAZ sem a tabela de itens (layout mudou ou consulta falhou)")
+            ?: throw NfceParseException("A SEFAZ não devolveu a nota (consulta bloqueada ou página fora do ar)", semNota = true)
 
         val chave = doc.selectFirst("span.chave")?.text()?.let(ChaveAcesso::of)
             ?: throw NfceParseException("Chave de acesso não encontrada na página")

@@ -68,6 +68,8 @@ sealed interface EstadoImportacao {
     data class Invalida(val mensagem: String) : EstadoImportacao
     data class JaImportada(val lancamentoId: Long) : EstadoImportacao
     data class Falhou(val mensagem: String) : EstadoImportacao
+    /** Segunda tentativa automática, pelo navegador embutido. */
+    data class Navegador(val url: String) : EstadoImportacao
     data class Revisao(
         val nota: NotaImportada,
         val urlQr: String,
@@ -84,7 +86,7 @@ class ImportarNotaViewModel(
     private val repo: ImportacaoRepository,
     categoriaDao: CategoriaDao,
     metodoPagamentoDao: MetodoPagamentoDao,
-    conteudoQr: String,
+    private val conteudoQr: String,
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow<EstadoImportacao>(EstadoImportacao.Consultando)
@@ -97,21 +99,33 @@ class ImportarNotaViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
-        viewModelScope.launch {
-            _estado.value = when (val p = repo.preparar(conteudoQr)) {
-                is Preparo.Invalida -> EstadoImportacao.Invalida(p.mensagem)
-                is Preparo.JaImportada -> EstadoImportacao.JaImportada(p.lancamentoId)
-                is Preparo.Falhou -> EstadoImportacao.Falhou(p.mensagem)
-                is Preparo.Pronta -> EstadoImportacao.Revisao(
-                    nota = p.nota,
-                    urlQr = p.urlQr,
-                    categoriaId = p.categoriaSugeridaId,
-                    descricao = p.nota.emitente.razaoSocial,
-                    data = p.nota.dataEmissao.toLocalDate(),
-                    metodoPagamentoId = p.metodoSugeridoId,
-                )
-            }
-        }
+        viewModelScope.launch { _estado.value = paraEstado(repo.preparar(conteudoQr)) }
+    }
+
+    /** O navegador carregou a página com o resultado da consulta. */
+    fun paginaCarregada(html: String) {
+        _estado.value = EstadoImportacao.Consultando
+        viewModelScope.launch { _estado.value = paraEstado(repo.prepararDaPagina(conteudoQr, html)) }
+    }
+
+    fun desistirDoNavegador() {
+        _estado.value = EstadoImportacao.Consultando
+        viewModelScope.launch { _estado.value = paraEstado(repo.desistirDoNavegador(conteudoQr)) }
+    }
+
+    private fun paraEstado(p: Preparo): EstadoImportacao = when (p) {
+        is Preparo.Invalida -> EstadoImportacao.Invalida(p.mensagem)
+        is Preparo.JaImportada -> EstadoImportacao.JaImportada(p.lancamentoId)
+        is Preparo.Falhou -> EstadoImportacao.Falhou(p.mensagem)
+        is Preparo.TentarNoNavegador -> EstadoImportacao.Navegador(p.url)
+        is Preparo.Pronta -> EstadoImportacao.Revisao(
+            nota = p.nota,
+            urlQr = p.urlQr,
+            categoriaId = p.categoriaSugeridaId,
+            descricao = p.nota.emitente.razaoSocial,
+            data = p.nota.dataEmissao.toLocalDate(),
+            metodoPagamentoId = p.metodoSugeridoId,
+        )
     }
 
     fun alterar(f: (EstadoImportacao.Revisao) -> EstadoImportacao.Revisao) = _estado.update {
@@ -192,6 +206,7 @@ fun ImportarNotaScreen(
                     Button(onClick = onVerPendentes) { Text("Ver pendentes") }
                     OutlinedButton(onClick = onFechar) { Text("Voltar") }
                 }
+                is EstadoImportacao.Navegador -> NavegadorSefaz(e.url, vm::paginaCarregada, vm::desistirDoNavegador)
                 is EstadoImportacao.Revisao -> Revisao(
                     r = e,
                     categorias = categorias.filter { (it.ativa && it.tipo.aceita(TipoLancamento.SAIDA)) || it.id == e.categoriaId },

@@ -25,6 +25,11 @@ sealed interface Preparo {
     ) : Preparo
     /** Consulta falhou; a nota foi salva como PENDENTE. */
     data class Falhou(val mensagem: String) : Preparo
+    /**
+     * A SEFAZ não devolveu a nota à consulta direta (ex.: bloqueio anti-robô). A nota já foi salva como
+     * PENDENTE; a segunda tentativa abre a [url] num navegador e entrega a página a [prepararDaPagina].
+     */
+    data class TentarNoNavegador(val url: String) : Preparo
 }
 
 data class ResultadoReprocesso(val importadas: Int, val falhas: Int)
@@ -53,15 +58,41 @@ class ImportacaoRepository(private val db: AppDatabase, private val service: Nfc
         }
 
         return try {
-            val nota = service.consultar(conteudoQr)
-            val conhecido = estabelecimentoDao.buscarPorCnpj(nota.emitente.cnpj)
-            Preparo.Pronta(nota, conteudoQr.trim(), conhecido?.categoriaPadraoId, conhecido?.metodoPagamentoPadraoId)
+            pronta(service.consultar(conteudoQr), conteudoQr)
         } catch (e: NfceParseException) {
             if (e.permanente) return Preparo.Invalida(e.message.orEmpty())
-            registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota: ${e.message}")
+            val falhou = registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota: ${e.message}")
+            if (e.semNota) Preparo.TentarNoNavegador(conteudoQr.trim()) else falhou
         } catch (e: IOException) {
             registrarPendente(chave, conteudoQr.trim(), existente, "Falha ao consultar a SEFAZ: ${e.message ?: "sem conexão"}")
         }
+    }
+
+    /** Segunda tentativa: lê a página que o navegador carregou. A nota já está pendente desde [preparar]. */
+    suspend fun prepararDaPagina(conteudoQr: String, html: String): Preparo {
+        val chave = ChaveAcesso.doQrCode(conteudoQr)
+            ?: return Preparo.Invalida("Este QR Code não é de uma NFC-e.")
+        val existente = notaDao.buscarPorChave(chave.valor)
+        return try {
+            val nota = NfceParserSp.parse(html)
+            if (nota.chave != chave) throw NfceParseException("A página aberta é de outra nota")
+            pronta(nota, conteudoQr)
+        } catch (e: NfceParseException) {
+            if (e.permanente) return Preparo.Invalida(e.message.orEmpty())
+            registrarPendente(chave, conteudoQr.trim(), existente, "Não foi possível ler a nota pelo navegador: ${e.message}")
+        }
+    }
+
+    /** O usuário desistiu da segunda tentativa: a nota continua pendente. */
+    suspend fun desistirDoNavegador(conteudoQr: String): Preparo {
+        val chave = ChaveAcesso.doQrCode(conteudoQr)
+            ?: return Preparo.Invalida("Este QR Code não é de uma NFC-e.")
+        return registrarPendente(chave, conteudoQr.trim(), notaDao.buscarPorChave(chave.valor), "A SEFAZ não devolveu a nota, nem pelo navegador")
+    }
+
+    private suspend fun pronta(nota: NotaImportada, conteudoQr: String): Preparo.Pronta {
+        val conhecido = estabelecimentoDao.buscarPorCnpj(nota.emitente.cnpj)
+        return Preparo.Pronta(nota, conteudoQr.trim(), conhecido?.categoriaPadraoId, conhecido?.metodoPagamentoPadraoId)
     }
 
     private suspend fun registrarPendente(chave: ChaveAcesso, url: String, existente: NotaFiscal?, erro: String): Preparo {
